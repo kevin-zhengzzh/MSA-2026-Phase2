@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Default theme (Forest green) */
+:root {
+  --primary: #16a34a;
+  --primary-hover: #15803d;
+  --primary-light: #dcfce7;
+  --primary-text: #14532d;
+  --primary-ring: #86efac;
+}
+
+[data-theme="ocean"] {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #dbeafe;
+  --primary-text: #1e3a8a;
+  --primary-ring: #93c5fd;
+}
+
+[data-theme="sunset"] {
+  --primary: #ea580c;
+  --primary-hover: #c2410c;
+  --primary-light: #ffedd5;
+  --primary-text: #7c2d12;
+  --primary-ring: #fdba74;
+}
+
+[data-theme="midnight"] {
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --primary-light: #ede9fe;
+  --primary-text: #2e1065;
+  --primary-ring: #c4b5fd;
+}
+
+[data-theme="cherry"] {
+  --primary: #db2777;
+  --primary-hover: #be185d;
+  --primary-light: #fce7f3;
+  --primary-text: #831843;
+  --primary-ring: #f9a8d4;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
