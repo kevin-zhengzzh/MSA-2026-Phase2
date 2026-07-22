@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react'
 import { getCheckInHistory } from '../api'
 import type { CheckIn } from '../types'
 
+// Bare "YYYY-MM-DD" strings parse as UTC midnight in JS; constructing from
+// the parts instead keeps the calendar date stable regardless of local timezone.
+function parseLocalDate(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export default function History() {
   const [history, setHistory] = useState<CheckIn[]>([])
 
@@ -32,7 +39,7 @@ export default function History() {
           .map(([month, entries]) => (
             <div key={month} className="bg-white rounded-2xl shadow p-5">
               <h2 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3">
-                {new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {parseLocalDate(`${month}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
               <ul className="divide-y divide-gray-100">
                 {entries.map((c) => (
@@ -45,7 +52,7 @@ export default function History() {
                     </span>
                     <div>
                       <p className="text-sm font-medium text-gray-800">
-                        {new Date(c.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {parseLocalDate(c.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                       {c.note && <p className="text-xs text-gray-400 mt-0.5">{c.note}</p>}
                     </div>

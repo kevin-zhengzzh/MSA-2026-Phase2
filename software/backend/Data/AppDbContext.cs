@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<CheckIn> CheckIns { get; set; }
     public DbSet<Skin> Skins { get; set; }
     public DbSet<UserSkin> UserSkins { get; set; }
+    public DbSet<WorkoutRecord> WorkoutRecords { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,10 @@ public class AppDbContext : DbContext
         // One check-in per user per day
         modelBuilder.Entity<CheckIn>()
             .HasIndex(c => new { c.UserId, c.Date }).IsUnique();
+
+        // Speeds up "has this user already earned today's workout bonus" lookups
+        modelBuilder.Entity<WorkoutRecord>()
+            .HasIndex(w => new { w.UserId, w.Date });
 
         // UserSkin uses composite primary key
         modelBuilder.Entity<UserSkin>()

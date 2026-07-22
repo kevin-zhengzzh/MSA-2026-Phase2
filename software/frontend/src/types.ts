@@ -17,6 +17,20 @@ export interface CheckIn {
   createdAt: string
 }
 
+export const WORKOUT_TYPES = ['Running', 'Cycling', 'Swimming', 'Gym', 'Yoga', 'Other'] as const
+
+export interface WorkoutRecord {
+  id: number
+  workoutType: string
+  calories: number
+  createdAt: string
+}
+
+export interface WorkoutSubmitResult extends WorkoutRecord {
+  pointsEarned: number
+  totalPoints: number
+}
+
 export interface CheckInResult {
   id: number
   date: string

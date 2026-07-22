@@ -50,6 +50,7 @@ builder.Services.AddScoped<AuthService>();
 // FluentValidation
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+builder.Services.AddScoped<IValidator<WorkoutRecordRequest>, WorkoutRecordRequestValidator>();
 
 var app = builder.Build();
 

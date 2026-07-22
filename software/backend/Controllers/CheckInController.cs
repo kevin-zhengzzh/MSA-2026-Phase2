@@ -19,10 +19,23 @@ public class CheckInController : ControllerBase
 
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    [HttpGet("today")]
-    public async Task<IActionResult> GetToday()
+    // Trusts the client's local date, clamped to ±1 day of server UTC —
+    // real-world timezone offsets never diverge from UTC by more than a day either way.
+    private static DateOnly ResolveToday(string? localDate)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var utcToday = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (localDate is not null && DateOnly.TryParse(localDate, out var parsed))
+        {
+            var diff = parsed.DayNumber - utcToday.DayNumber;
+            if (diff is >= -1 and <= 1) return parsed;
+        }
+        return utcToday;
+    }
+
+    [HttpGet("today")]
+    public async Task<IActionResult> GetToday([FromQuery] string? localDate = null)
+    {
+        var today = ResolveToday(localDate);
         var checkIn = await _db.CheckIns
             .FirstOrDefaultAsync(c => c.UserId == UserId && c.Date == today);
         return Ok(new { checkedIn = checkIn is not null });
@@ -40,9 +53,9 @@ public class CheckInController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CheckIn([FromBody] string? note = null)
+    public async Task<IActionResult> CheckIn([FromBody] string? note = null, [FromQuery] string? localDate = null)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = ResolveToday(localDate);
         var alreadyIn = await _db.CheckIns
             .AnyAsync(c => c.UserId == UserId && c.Date == today);
 

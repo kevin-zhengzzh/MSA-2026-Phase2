@@ -1,4 +1,4 @@
-import type { AuthResponse, CheckIn, CheckInResult, Skin, User } from './types'
+import type { AuthResponse, CheckIn, CheckInResult, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
 
 const BASE = 'http://localhost:5000/api'
 
@@ -40,11 +40,22 @@ export const login = (email: string, password: string) =>
 export const getMe = () => request<User>('/user/me')
 
 // Check-in
+function localDateStr() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export const checkInToday = (note?: string) =>
-  request<CheckInResult>('/checkin', { method: 'POST', body: JSON.stringify(note ?? null) })
+  request<CheckInResult>(`/checkin?localDate=${localDateStr()}`, {
+    method: 'POST',
+    body: JSON.stringify(note ?? null),
+  })
 
 export const getTodayStatus = () =>
-  request<{ checkedIn: boolean }>('/checkin/today')
+  request<{ checkedIn: boolean }>(`/checkin/today?localDate=${localDateStr()}`)
 
 export const getCheckInHistory = () => request<CheckIn[]>('/checkin/history')
 
@@ -59,3 +70,24 @@ export const equipSkin = (id: number) =>
 
 export const unequipSkin = () =>
   request<{ theme: string }>('/skin/equip', { method: 'DELETE' })
+
+// Workout records
+export const recordWorkout = (workoutType: string, calories: number) =>
+  request<WorkoutSubmitResult>(`/workout?localDate=${localDateStr()}`, {
+    method: 'POST',
+    body: JSON.stringify({ workoutType, calories }),
+  })
+
+export const getWorkoutHistory = () => request<WorkoutRecord[]>('/workout')
+
+export const getWorkoutTodayStatus = () =>
+  request<{ recordedToday: boolean }>(`/workout/today?localDate=${localDateStr()}`)
+
+export const updateWorkout = (id: number, workoutType: string, calories: number) =>
+  request<WorkoutRecord>(`/workout/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ workoutType, calories }),
+  })
+
+export const deleteWorkout = (id: number) =>
+  request<void>(`/workout/${id}`, { method: 'DELETE' })

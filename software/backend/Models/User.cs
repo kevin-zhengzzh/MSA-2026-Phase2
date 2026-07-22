@@ -19,4 +19,5 @@ public class User
     // Navigation
     public ICollection<CheckIn> CheckIns { get; set; } = [];
     public ICollection<UserSkin> OwnedSkins { get; set; } = [];
+    public ICollection<WorkoutRecord> WorkoutRecords { get; set; } = [];
 }
