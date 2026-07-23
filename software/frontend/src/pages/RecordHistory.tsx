@@ -1,12 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { deleteWorkout, getWorkoutHistory, updateWorkout } from '../api'
+import Pagination from '../components/Pagination'
 import { useStore } from '../store'
 import { WORKOUT_TYPES, type WorkoutRecord } from '../types'
+
+const PAGE_SIZE = 7
+
+// Case-insensitive substring match, falling back to an in-order subsequence
+// match (e.g. "cyc" or "ccyl" both still find "Cycling") for typo tolerance
+function fuzzyMatch(query: string, target: string): boolean {
+  if (!query) return true
+  const q = query.toLowerCase()
+  const t = target.toLowerCase()
+  if (t.includes(q)) return true
+  let qi = 0
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) qi++
+  }
+  return qi === q.length
+}
 
 export default function RecordHistory() {
   const pushToast = useStore((s) => s.pushToast)
   const [history, setHistory] = useState<WorkoutRecord[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editType, setEditType] = useState<string>(WORKOUT_TYPES[0])
   const [editCalories, setEditCalories] = useState('')
@@ -17,6 +36,18 @@ export default function RecordHistory() {
   useEffect(() => {
     getWorkoutHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
+
+  const filtered = useMemo(
+    () => history.filter((w) => fuzzyMatch(search, w.workoutType)),
+    [history, search]
+  )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   function startEdit(w: WorkoutRecord) {
     setEditingId(w.id)
@@ -63,8 +94,8 @@ export default function RecordHistory() {
     }
   }
 
-  // Group workout records by month for display
-  const grouped = history.reduce<Record<string, WorkoutRecord[]>>((acc, w) => {
+  // Group the current page's workout records by month for display
+  const grouped = pageItems.reduce<Record<string, WorkoutRecord[]>>((acc, w) => {
     const d = new Date(w.createdAt)
     const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (!acc[month]) acc[month] = []
@@ -75,6 +106,16 @@ export default function RecordHistory() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold text-gray-800">Record History</h1>
+
+      {!initialLoading && history.length > 0 && (
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by workout type…"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+        />
+      )}
 
       {initialLoading ? (
         <div className="bg-white rounded-2xl shadow p-5 flex flex-col gap-3">
@@ -90,6 +131,11 @@ export default function RecordHistory() {
         <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
           <p className="text-4xl mb-3">🏋️</p>
           <p>No workout records yet. Log one from the dashboard!</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+          <p className="text-4xl mb-3">🔍</p>
+          <p>No records match "{search}".</p>
         </div>
       ) : (
         Object.entries(grouped)
@@ -148,6 +194,10 @@ export default function RecordHistory() {
               </p>
             </div>
           ))
+      )}
+
+      {!initialLoading && filtered.length > 0 && (
+        <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
       )}
 
       {editingId !== null && (

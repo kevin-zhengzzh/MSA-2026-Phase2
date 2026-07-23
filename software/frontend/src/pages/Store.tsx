@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { equipSkin, getMe, getSkins, purchaseSkin, unequipSkin } from '../api'
 import { useStore } from '../store'
 import { THEME_COLORS, type Skin } from '../types'
 
 export default function Store() {
-  const { user, setUser, setTheme, pushToast } = useStore()
-  const [skins, setSkins] = useState<Skin[]>([])
+  const { user, setUser, setTheme, pushToast, skins, setSkins } = useStore()
 
   useEffect(() => {
     getSkins().then(setSkins).catch(console.error)
@@ -84,6 +83,7 @@ export default function Store() {
           pointCost={skin.pointCost}
           isOwned={skin.isOwned}
           isEquipped={skin.isEquipped}
+          isAffordable={!skin.isOwned && !!user && user.points >= skin.pointCost}
           onPurchase={skin.isOwned ? undefined : () => handlePurchase(skin)}
           onEquip={skin.isOwned && !skin.isEquipped ? () => handleEquip(skin) : undefined}
         />
@@ -93,7 +93,7 @@ export default function Store() {
 }
 
 function SkinCard({
-  name, description, theme, pointCost, isOwned, isEquipped, onPurchase, onEquip,
+  name, description, theme, pointCost, isOwned, isEquipped, isAffordable, onPurchase, onEquip,
 }: {
   name: string
   description: string
@@ -101,14 +101,18 @@ function SkinCard({
   pointCost: number
   isOwned: boolean
   isEquipped: boolean
+  isAffordable?: boolean
   onPurchase?: () => void
   onEquip?: () => void
 }) {
   const colors = THEME_COLORS[theme] ?? THEME_COLORS.default
 
   return (
-    <div className={`bg-white rounded-2xl shadow p-5 flex items-center gap-5 ${isEquipped ? 'ring-2' : ''}`}
+    <div className={`relative bg-white rounded-2xl shadow p-5 flex items-center gap-5 ${isEquipped ? 'ring-2' : ''}`}
       style={isEquipped ? { ringColor: colors.primary } : {}}>
+      {isAffordable && (
+        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 ring-2 ring-white" />
+      )}
       {/* Color preview */}
       <div className="w-16 h-16 rounded-xl flex-shrink-0" style={{ backgroundColor: colors.primary }} />
 

@@ -50,11 +50,25 @@ export interface Skin {
   isEquipped: boolean
 }
 
+export interface RewardStatus {
+  checkIn: { pointsEarned: number; claimed: boolean } | null
+  workout: { pointsEarned: number; claimed: boolean } | null
+}
+
 export interface PointTransaction {
   id: number
   amount: number
   reason: string
   createdAt: string
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  id: number
+  username: string
+  points: number
+  isMe: boolean
+  avatarUrl: string | null
 }
 
 export interface AuthResponse {

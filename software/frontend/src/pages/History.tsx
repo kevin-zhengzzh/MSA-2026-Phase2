@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getCheckInHistory } from '../api'
+import Pagination from '../components/Pagination'
 import type { CheckIn } from '../types'
+
+const PAGE_SIZE = 7
 
 // Bare "YYYY-MM-DD" strings parse as UTC midnight in JS; constructing from
 // the parts instead keeps the calendar date stable regardless of local timezone.
@@ -12,13 +15,18 @@ function parseLocalDate(dateStr: string) {
 export default function History() {
   const [history, setHistory] = useState<CheckIn[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     getCheckInHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
 
-  // Group check-ins by month for display
-  const grouped = history.reduce<Record<string, CheckIn[]>>((acc, c) => {
+  const totalPages = Math.max(1, Math.ceil(history.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = history.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  // Group the current page's check-ins by month for display
+  const grouped = pageItems.reduce<Record<string, CheckIn[]>>((acc, c) => {
     const month = c.date.slice(0, 7) // "2026-07"
     if (!acc[month]) acc[month] = []
     acc[month].push(c)
@@ -75,6 +83,10 @@ export default function History() {
               </p>
             </div>
           ))
+      )}
+
+      {!initialLoading && history.length > 0 && (
+        <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
       )}
     </div>
   )

@@ -12,6 +12,7 @@ export default function UserMenu({
   username,
   points,
   avatarUrl,
+  hasAffordableSkin,
   onOpenStore,
   onOpenPoints,
   onAvatarUpload,
@@ -20,6 +21,7 @@ export default function UserMenu({
   username: string | null
   points: number | null
   avatarUrl: string | null
+  hasAffordableSkin: boolean
   onOpenStore: () => void
   onOpenPoints: () => void
   onAvatarUpload: (file: File) => void
@@ -37,13 +39,18 @@ export default function UserMenu({
         className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 transition cursor-pointer hover:opacity-80"
         style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
       >
-        {avatarUrl ? (
-          <img src={assetUrl(avatarUrl)} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-        ) : (
-          <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
-            <PersonIcon className="w-4 h-4 text-white" />
-          </span>
-        )}
+        <div className="relative flex-shrink-0">
+          {avatarUrl ? (
+            <img src={assetUrl(avatarUrl)} alt="" className="w-7 h-7 rounded-full object-cover" />
+          ) : (
+            <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--primary)' }}>
+              <PersonIcon className="w-4 h-4 text-white" />
+            </span>
+          )}
+          {hasAffordableSkin && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          )}
+        </div>
         {username && <span className="text-sm font-medium max-w-[10rem] truncate">{username}</span>}
       </div>
 
@@ -82,9 +89,12 @@ export default function UserMenu({
 
           <button
             onClick={onOpenStore}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer"
+            className="relative w-full text-left px-4 py-2 hover:bg-gray-100 cursor-pointer"
           >
             Store
+            {hasAffordableSkin && (
+              <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-red-500" />
+            )}
           </button>
           {points != null && (
             <button

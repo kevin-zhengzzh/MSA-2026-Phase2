@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User } from './types'
+import type { RewardStatus, Skin, User } from './types'
 
 interface AppState {
   // Auth
@@ -29,6 +29,20 @@ interface AppState {
   toasts: Toast[]
   pushToast: (message: string, type?: 'success' | 'error') => void
   dismissToast: (id: number) => void
+
+  // Store is a modal (not a route), so any page can open it without prop drilling
+  storeOpen: boolean
+  setStoreOpen: (open: boolean) => void
+
+  // Skins list, kept globally so "can afford a skin" can be shown as a
+  // notification dot outside the Store itself (e.g. on the user menu)
+  skins: Skin[]
+  setSkins: (skins: Skin[]) => void
+
+  // Today's check-in/workout reward claim status — global so the Daily
+  // Tasks menu in the header can show it from any page
+  rewardStatus: RewardStatus | null
+  setRewardStatus: (status: RewardStatus | null) => void
 }
 
 export interface Toast {
@@ -84,4 +98,13 @@ export const useStore = create<AppState>((set) => ({
     }, 4000)
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  storeOpen: false,
+  setStoreOpen: (open) => set({ storeOpen: open }),
+
+  skins: [],
+  setSkins: (skins) => set({ skins }),
+
+  rewardStatus: null,
+  setRewardStatus: (rewardStatus) => set({ rewardStatus }),
 }))

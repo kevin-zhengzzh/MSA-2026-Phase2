@@ -64,20 +64,9 @@ public class WorkoutController : ControllerBase
         var alreadyEarnedToday = await _db.WorkoutRecords
             .AnyAsync(w => w.UserId == UserId && w.Date == today);
 
-        var pointsEarned = 0;
-        if (!alreadyEarnedToday)
-        {
-            pointsEarned = DailyWorkoutBonus;
-            user.Points += pointsEarned;
-
-            _db.PointTransactions.Add(new PointTransaction
-            {
-                UserId = UserId,
-                Amount = pointsEarned,
-                Reason = $"Workout ({req.WorkoutType})",
-                CreatedAt = DateTime.UtcNow
-            });
-        }
+        // Reward is computed now but only credited to the user once claimed
+        // via POST /api/rewards/claim.
+        var pointsEarned = alreadyEarnedToday ? 0 : DailyWorkoutBonus;
 
         var record = new WorkoutRecord
         {
@@ -85,7 +74,9 @@ public class WorkoutController : ControllerBase
             WorkoutType = req.WorkoutType,
             Calories = req.Calories,
             Date = today,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PointsEarned = pointsEarned,
+            Claimed = false
         };
         _db.WorkoutRecords.Add(record);
         await _db.SaveChangesAsync();

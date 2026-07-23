@@ -65,15 +65,6 @@ public class CheckInController : ControllerBase
         var user = await _db.Users.FindAsync(UserId);
         if (user is null) return NotFound();
 
-        var checkIn = new CheckIn
-        {
-            UserId = UserId,
-            Date = today,
-            Note = note,
-            CreatedAt = DateTime.UtcNow
-        };
-        _db.CheckIns.Add(checkIn);
-
         // Update streak
         var yesterday = today.AddDays(-1);
         user.Streak = user.LastCheckIn.HasValue &&
@@ -82,18 +73,22 @@ public class CheckInController : ControllerBase
             : 1;
         user.LastCheckIn = DateTime.UtcNow;
 
-        // Points: 10 base + (streak × 2) bonus, capped at 50 bonus
+        // Points: 10 base + (streak × 2) bonus, capped at 50 bonus.
+        // Computed now (while the streak is known) but only credited to the
+        // user once claimed via POST /api/rewards/claim.
         var bonus = Math.Min(user.Streak * 2, 50);
         var earned = 10 + bonus;
-        user.Points += earned;
 
-        _db.PointTransactions.Add(new PointTransaction
+        var checkIn = new CheckIn
         {
             UserId = UserId,
-            Amount = earned,
-            Reason = "Daily check-in",
-            CreatedAt = DateTime.UtcNow
-        });
+            Date = today,
+            Note = note,
+            CreatedAt = DateTime.UtcNow,
+            PointsEarned = earned,
+            Claimed = false
+        };
+        _db.CheckIns.Add(checkIn);
 
         await _db.SaveChangesAsync();
 

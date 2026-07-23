@@ -1,4 +1,4 @@
-import type { AuthResponse, CheckIn, CheckInResult, PointTransaction, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
+import type { AuthResponse, CheckIn, CheckInResult, LeaderboardEntry, PointTransaction, RewardStatus, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
 
 const ORIGIN = 'http://localhost:5000'
 const BASE = `${ORIGIN}/api`
@@ -21,7 +21,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(err?.message ?? res.statusText)
+    // FluentValidation failures come back as a plain array of message strings
+    // rather than { message }
+    const message = Array.isArray(err) ? err.join(' ') : (err?.message ?? res.statusText)
+    throw new Error(message)
   }
   if (res.status === 204) return undefined as T
   return res.json()
@@ -55,7 +58,10 @@ export async function uploadAvatar(file: File) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(err?.message ?? res.statusText)
+    // FluentValidation failures come back as a plain array of message strings
+    // rather than { message }
+    const message = Array.isArray(err) ? err.join(' ') : (err?.message ?? res.statusText)
+    throw new Error(message)
   }
   return res.json() as Promise<{ avatarUrl: string }>
 }
@@ -80,8 +86,20 @@ export const getTodayStatus = () =>
 
 export const getCheckInHistory = () => request<CheckIn[]>('/checkin/history')
 
+// Leaderboard
+export const getLeaderboard = () => request<LeaderboardEntry[]>('/leaderboard')
+
 // Points
 export const getPointHistory = () => request<PointTransaction[]>('/points/history')
+
+// Rewards — check-in/workout points are earned but not credited until claimed
+export const getTodayRewards = () =>
+  request<RewardStatus>(`/rewards/today?localDate=${localDateStr()}`)
+
+export const claimRewards = () =>
+  request<{ claimedPoints: number; totalPoints: number }>(`/rewards/claim?localDate=${localDateStr()}`, {
+    method: 'POST',
+  })
 
 // Skins
 export const getSkins = () => request<Skin[]>('/skin')

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { checkInToday, getMe, getTodayStatus, getWorkoutTodayStatus, recordWorkout } from '../api'
+import { checkInToday, getMe, getTodayRewards, getTodayStatus, recordWorkout } from '../api'
 import { useStore } from '../store'
 import { WORKOUT_TYPES, type CheckInResult } from '../types'
 
 export default function Dashboard() {
-  const { user, setUser, checkedInToday, setCheckedInToday, pushToast } = useStore()
+  const { user, setUser, checkedInToday, setCheckedInToday, setRewardStatus, pushToast, setStoreOpen } = useStore()
   const [loading, setLoading] = useState(false)
   const [lastResult, setLastResult] = useState<CheckInResult | null>(null)
 
@@ -13,14 +12,13 @@ export default function Dashboard() {
   const [workoutType, setWorkoutType] = useState<string>(WORKOUT_TYPES[0])
   const [calories, setCalories] = useState('')
   const [recording, setRecording] = useState(false)
-  const [recordedToday, setRecordedToday] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [showPointsHint, setShowPointsHint] = useState(false)
 
   useEffect(() => {
     Promise.allSettled([
       getMe().then(setUser),
       getTodayStatus().then((r) => setCheckedInToday(r.checkedIn)),
-      getWorkoutTodayStatus().then((r) => setRecordedToday(r.recordedToday)),
     ]).then(() => setInitialLoading(false))
   }, [])
 
@@ -40,12 +38,11 @@ export default function Dashboard() {
     setRecording(true)
     try {
       const result = await recordWorkout(workoutType, caloriesNum)
-      if (user) setUser({ ...user, points: result.totalPoints })
-      setRecordedToday(true)
+      getTodayRewards().then(setRewardStatus).catch(console.error)
       pushToast(
         result.pointsEarned > 0
-          ? `+${result.pointsEarned} points earned for today's workout!`
-          : 'Workout saved! (Daily workout bonus already claimed today.)',
+          ? `Workout recorded! Claim your +${result.pointsEarned} pts in Daily Tasks.`
+          : "Workout saved! (You've already recorded a workout today.)",
         'success'
       )
       setShowRecordModal(false)
@@ -62,9 +59,7 @@ export default function Dashboard() {
       const result = await checkInToday()
       setLastResult(result)
       setCheckedInToday(true)
-      // Refresh user stats
-      const updated = await getMe()
-      setUser(updated)
+      getTodayRewards().then(setRewardStatus).catch(console.error)
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Check-in failed')
     } finally {
@@ -79,31 +74,19 @@ export default function Dashboard() {
       {/* Stats row */}
       {user && (
         <div className="w-full grid grid-cols-2 gap-4">
-          <StatCard label="Points" value={user.points} />
+          <StatCard label="Points" value={user.points} onInfoClick={() => setShowPointsHint(true)} />
           <StatCard label="Current streak" value={`${user.streak} day${user.streak !== 1 ? 's' : ''}`} />
         </div>
       )}
 
       {initialLoading ? (
-        <>
-          <div className="w-full h-14 rounded-xl shadow bg-gray-100 animate-pulse" />
-          <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
-            <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
-            <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
-          </div>
-        </>
+        <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
+          <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
+          <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
+        </div>
       ) : (
         <>
-          {/* Mission status */}
-          <div
-            className="w-full rounded-xl px-4 py-3 shadow text-left text-xs font-medium space-y-1"
-            style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
-          >
-            <p>Daily check-in reward: {checkedInToday ? '10/10' : '0/10'}</p>
-            <p>Daily record reward: {recordedToday ? '10/10' : '0/10'}</p>
-          </div>
-
           {/* Big check-in button */}
           <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
             {checkedInToday ? (
@@ -112,7 +95,7 @@ export default function Dashboard() {
                 <p className="text-xl font-semibold text-gray-700">You checked in today!</p>
                 {lastResult && (
                   <p className="text-sm" style={{ color: 'var(--primary)' }}>
-                    +{lastResult.pointsEarned} points earned · {lastResult.streak}-day streak
+                    +{lastResult.pointsEarned} pts ready to claim in Daily Tasks · {lastResult.streak}-day streak
                   </p>
                 )}
                 <p className="text-gray-400 text-sm">Come back tomorrow to keep your streak going.</p>
@@ -138,22 +121,36 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Points info */}
-      <div className="w-full bg-white rounded-2xl shadow p-5">
-        <h2 className="font-semibold text-gray-700 mb-2">How points work</h2>
-        <ul className="text-sm text-gray-500 space-y-1 list-disc list-inside">
-          <li>10 base points per check-in</li>
-          <li>+streak × 2 bonus (e.g. 5-day streak = +10 bonus)</li>
-          <li>Recording a workout also earns +10 points — once per day only</li>
-          <li>
-            Spend points in the{' '}
-            <Link to="/store" className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
-              Store
-            </Link>{' '}
-            to unlock app skins
-          </li>
-        </ul>
-      </div>
+      {/* Points hint modal */}
+      {showPointsHint && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+          onClick={() => setShowPointsHint(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-800 mb-4">How points work</h2>
+            <ul className="text-sm text-gray-500 space-y-2 list-disc list-inside">
+              <li>10 base points per check-in</li>
+              <li>+streak × 2 bonus (e.g. 5-day streak = +10 bonus)</li>
+              <li>Recording a workout also earns +10 points — once per day only</li>
+              <li>
+                Spend points in the{' '}
+                <button
+                  onClick={() => { setShowPointsHint(false); setStoreOpen(true) }}
+                  className="font-medium hover:underline cursor-pointer"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  Store
+                </button>{' '}
+                to unlock app skins
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Floating record button */}
       <button
@@ -227,10 +224,22 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCard({ label, value, onInfoClick }: { label: string; value: string | number; onInfoClick?: () => void }) {
   return (
     <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}>
-      <p className="text-xs font-medium uppercase tracking-wide opacity-70">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-xs font-medium uppercase tracking-wide opacity-70">{label}</p>
+        {onInfoClick && (
+          <button
+            onClick={onInfoClick}
+            aria-label={`About ${label}`}
+            className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold leading-none cursor-pointer opacity-70 hover:opacity-100"
+            style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+          >
+            ?
+          </button>
+        )}
+      </div>
       <p className="text-2xl font-bold mt-1">{value}</p>
     </div>
   )
