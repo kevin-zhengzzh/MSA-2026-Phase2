@@ -5,38 +5,36 @@ import { useStore } from '../store'
 import { WORKOUT_TYPES, type CheckInResult } from '../types'
 
 export default function Dashboard() {
-  const { user, setUser, checkedInToday, setCheckedInToday } = useStore()
+  const { user, setUser, checkedInToday, setCheckedInToday, pushToast } = useStore()
   const [loading, setLoading] = useState(false)
   const [lastResult, setLastResult] = useState<CheckInResult | null>(null)
-  const [error, setError] = useState('')
 
   const [showRecordModal, setShowRecordModal] = useState(false)
   const [workoutType, setWorkoutType] = useState<string>(WORKOUT_TYPES[0])
   const [calories, setCalories] = useState('')
-  const [recordError, setRecordError] = useState('')
   const [recording, setRecording] = useState(false)
-  const [workoutFeedback, setWorkoutFeedback] = useState('')
   const [recordedToday, setRecordedToday] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
-    getMe().then(setUser).catch(console.error)
-    getTodayStatus().then((r) => setCheckedInToday(r.checkedIn)).catch(console.error)
-    getWorkoutTodayStatus().then((r) => setRecordedToday(r.recordedToday)).catch(console.error)
+    Promise.allSettled([
+      getMe().then(setUser),
+      getTodayStatus().then((r) => setCheckedInToday(r.checkedIn)),
+      getWorkoutTodayStatus().then((r) => setRecordedToday(r.recordedToday)),
+    ]).then(() => setInitialLoading(false))
   }, [])
 
   function openRecordModal() {
     setWorkoutType(WORKOUT_TYPES[0])
     setCalories('')
-    setRecordError('')
     setShowRecordModal(true)
   }
 
   async function handleRecordSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setRecordError('')
     const caloriesNum = Number(calories)
     if (!calories || caloriesNum <= 0) {
-      setRecordError('Enter a valid calorie amount.')
+      pushToast('Enter a valid calorie amount.')
       return
     }
     setRecording(true)
@@ -44,14 +42,15 @@ export default function Dashboard() {
       const result = await recordWorkout(workoutType, caloriesNum)
       if (user) setUser({ ...user, points: result.totalPoints })
       setRecordedToday(true)
-      setWorkoutFeedback(
+      pushToast(
         result.pointsEarned > 0
           ? `+${result.pointsEarned} points earned for today's workout!`
-          : 'Workout saved! (Daily workout bonus already claimed today.)'
+          : 'Workout saved! (Daily workout bonus already claimed today.)',
+        'success'
       )
       setShowRecordModal(false)
     } catch (err: unknown) {
-      setRecordError(err instanceof Error ? err.message : 'Failed to save workout')
+      pushToast(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setRecording(false)
     }
@@ -59,7 +58,6 @@ export default function Dashboard() {
 
   async function handleCheckIn() {
     setLoading(true)
-    setError('')
     try {
       const result = await checkInToday()
       setLastResult(result)
@@ -68,7 +66,7 @@ export default function Dashboard() {
       const updated = await getMe()
       setUser(updated)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Check-in failed')
+      pushToast(err instanceof Error ? err.message : 'Check-in failed')
     } finally {
       setLoading(false)
     }
@@ -78,15 +76,6 @@ export default function Dashboard() {
     <div className="flex flex-col items-center gap-8">
       <h1 className="text-3xl font-bold text-gray-800 self-start">Dashboard</h1>
 
-      {/* Mission status — fixed top-right, aligned with the floating record button below */}
-      <div
-        className="fixed top-24 right-6 z-30 rounded-xl px-4 py-3 shadow text-right text-xs font-medium space-y-1"
-        style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
-      >
-        <p>Daily check-in reward: {checkedInToday ? '10/10' : '0/10'}</p>
-        <p>Daily record reward: {recordedToday ? '10/10' : '0/10'}</p>
-      </div>
-
       {/* Stats row */}
       {user && (
         <div className="w-full grid grid-cols-2 gap-4">
@@ -95,46 +84,58 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Big check-in button */}
-      <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-        {checkedInToday ? (
-          <>
-            <div className="text-6xl">✅</div>
-            <p className="text-xl font-semibold text-gray-700">You checked in today!</p>
-            {lastResult && (
-              <p className="text-sm" style={{ color: 'var(--primary)' }}>
-                +{lastResult.pointsEarned} points earned · {lastResult.streak}-day streak
-              </p>
-            )}
-            <p className="text-gray-400 text-sm">Come back tomorrow to keep your streak going.</p>
-          </>
-        ) : (
-          <>
-            <div className="text-6xl">🏃</div>
-            <p className="text-xl font-semibold text-gray-700">Did you exercise today?</p>
-            <p className="text-gray-400 text-sm">Hit the button to log your workout and earn points.</p>
-            <button
-              onClick={handleCheckIn}
-              disabled={loading}
-              className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
-              style={{ backgroundColor: 'var(--primary)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
-            >
-              {loading ? 'Checking in…' : '✓ Check In'}
-            </button>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-          </>
-        )}
-      </div>
+      {initialLoading ? (
+        <>
+          <div className="w-full h-14 rounded-xl shadow bg-gray-100 animate-pulse" />
+          <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
+            <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
+            <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Mission status */}
+          <div
+            className="w-full rounded-xl px-4 py-3 shadow text-left text-xs font-medium space-y-1"
+            style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
+          >
+            <p>Daily check-in reward: {checkedInToday ? '10/10' : '0/10'}</p>
+            <p>Daily record reward: {recordedToday ? '10/10' : '0/10'}</p>
+          </div>
 
-      {workoutFeedback && (
-        <div
-          className="w-full rounded-xl px-4 py-3 text-sm font-medium"
-          style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
-        >
-          {workoutFeedback}
-        </div>
+          {/* Big check-in button */}
+          <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
+            {checkedInToday ? (
+              <>
+                <div className="text-6xl">✅</div>
+                <p className="text-xl font-semibold text-gray-700">You checked in today!</p>
+                {lastResult && (
+                  <p className="text-sm" style={{ color: 'var(--primary)' }}>
+                    +{lastResult.pointsEarned} points earned · {lastResult.streak}-day streak
+                  </p>
+                )}
+                <p className="text-gray-400 text-sm">Come back tomorrow to keep your streak going.</p>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl">🏃</div>
+                <p className="text-xl font-semibold text-gray-700">Did you exercise today?</p>
+                <p className="text-gray-400 text-sm">Hit the button to log your workout and earn points.</p>
+                <button
+                  onClick={handleCheckIn}
+                  disabled={loading}
+                  className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
+                  style={{ backgroundColor: 'var(--primary)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
+                >
+                  {loading ? 'Checking in…' : '✓ Check In'}
+                </button>
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {/* Points info */}
@@ -201,7 +202,6 @@ export default function Dashboard() {
                   className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
-              {recordError && <p className="text-red-500 text-sm">{recordError}</p>}
               <div className="flex gap-3 mt-2">
                 <button
                   type="button"

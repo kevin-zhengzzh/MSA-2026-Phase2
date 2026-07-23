@@ -1,39 +1,37 @@
 import { useEffect, useState } from 'react'
 import { deleteWorkout, getWorkoutHistory, updateWorkout } from '../api'
+import { useStore } from '../store'
 import { WORKOUT_TYPES, type WorkoutRecord } from '../types'
 
 export default function RecordHistory() {
+  const pushToast = useStore((s) => s.pushToast)
   const [history, setHistory] = useState<WorkoutRecord[]>([])
+  const [initialLoading, setInitialLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editType, setEditType] = useState<string>(WORKOUT_TYPES[0])
   const [editCalories, setEditCalories] = useState('')
-  const [editError, setEditError] = useState('')
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
-  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
-    getWorkoutHistory().then(setHistory).catch(console.error)
+    getWorkoutHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
 
   function startEdit(w: WorkoutRecord) {
     setEditingId(w.id)
     setEditType(w.workoutType)
     setEditCalories(String(w.calories))
-    setEditError('')
   }
 
   function cancelEdit() {
     setEditingId(null)
-    setEditError('')
   }
 
   async function saveEdit(id: number) {
-    setEditError('')
     const caloriesNum = Number(editCalories)
     if (!editCalories || caloriesNum <= 0) {
-      setEditError('Enter a valid calorie amount.')
+      pushToast('Enter a valid calorie amount.')
       return
     }
     setSaving(true)
@@ -42,7 +40,7 @@ export default function RecordHistory() {
       setHistory((h) => h.map((w) => (w.id === id ? updated : w)))
       setEditingId(null)
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : 'Failed to save changes')
+      pushToast(err instanceof Error ? err.message : 'Failed to save changes')
     } finally {
       setSaving(false)
     }
@@ -50,18 +48,16 @@ export default function RecordHistory() {
 
   function cancelDelete() {
     setConfirmDeleteId(null)
-    setDeleteError('')
   }
 
   async function confirmDelete(id: number) {
-    setDeleteError('')
     setDeletingId(id)
     try {
       await deleteWorkout(id)
       setHistory((h) => h.filter((w) => w.id !== id))
       setConfirmDeleteId(null)
     } catch (err: unknown) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete record')
+      pushToast(err instanceof Error ? err.message : 'Failed to delete record')
     } finally {
       setDeletingId(null)
     }
@@ -80,7 +76,17 @@ export default function RecordHistory() {
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold text-gray-800">Record History</h1>
 
-      {history.length === 0 ? (
+      {initialLoading ? (
+        <div className="bg-white rounded-2xl shadow p-5 flex flex-col gap-3">
+          <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 py-1">
+              <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
+              <div className="h-4 w-40 rounded bg-gray-100 animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : history.length === 0 ? (
         <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
           <p className="text-4xl mb-3">🏋️</p>
           <p>No workout records yet. Log one from the dashboard!</p>
@@ -177,7 +183,6 @@ export default function RecordHistory() {
                   className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
-              {editError && <p className="text-red-500 text-sm">{editError}</p>}
               <div className="flex gap-3 mt-2">
                 <button
                   type="button"
@@ -212,7 +217,6 @@ export default function RecordHistory() {
           >
             <h2 className="text-xl font-bold text-gray-800 mb-2">Delete workout?</h2>
             <p className="text-sm text-gray-500 mb-4">This can't be undone.</p>
-            {deleteError && <p className="text-red-500 text-sm mb-4">{deleteError}</p>}
             <div className="flex gap-3">
               <button
                 type="button"

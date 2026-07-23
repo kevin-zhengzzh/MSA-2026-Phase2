@@ -69,6 +69,14 @@ public class SkinController : ControllerBase
             UnlockedAt = DateTime.UtcNow
         });
 
+        _db.PointTransactions.Add(new PointTransaction
+        {
+            UserId = UserId,
+            Amount = -skin.PointCost,
+            Reason = $"Purchased {skin.Name}",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(new { message = $"{skin.Name} unlocked!", remainingPoints = user.Points });
     }

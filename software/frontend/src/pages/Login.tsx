@@ -7,19 +7,18 @@ import AuthHeader from '../components/AuthHeader'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const setAuth = useStore((s) => s.setAuth)
+  const pushToast = useStore((s) => s.pushToast)
   const navigate = useNavigate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
     try {
       const res = await login(email, password)
       setAuth(res.token, res.userId, res.username)
       navigate('/')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      pushToast(err instanceof Error ? err.message : 'Login failed')
     }
   }
 
@@ -46,7 +45,6 @@ export default function Login() {
               required
               className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"
               className="bg-green-600 text-white rounded-lg py-2 font-semibold hover:bg-green-700 transition"

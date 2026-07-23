@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Skin> Skins { get; set; }
     public DbSet<UserSkin> UserSkins { get; set; }
     public DbSet<WorkoutRecord> WorkoutRecords { get; set; }
+    public DbSet<PointTransaction> PointTransactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,10 @@ public class AppDbContext : DbContext
         // Speeds up "has this user already earned today's workout bonus" lookups
         modelBuilder.Entity<WorkoutRecord>()
             .HasIndex(w => new { w.UserId, w.Date });
+
+        // Speeds up fetching a user's point history in chronological order
+        modelBuilder.Entity<PointTransaction>()
+            .HasIndex(p => new { p.UserId, p.CreatedAt });
 
         // UserSkin uses composite primary key
         modelBuilder.Entity<UserSkin>()

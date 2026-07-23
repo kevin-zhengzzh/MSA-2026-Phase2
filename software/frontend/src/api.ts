@@ -1,6 +1,10 @@
-import type { AuthResponse, CheckIn, CheckInResult, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
+import type { AuthResponse, CheckIn, CheckInResult, PointTransaction, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
 
-const BASE = 'http://localhost:5000/api'
+const ORIGIN = 'http://localhost:5000'
+const BASE = `${ORIGIN}/api`
+
+// Resolves a relative path (e.g. from User.avatarUrl) to a fetchable URL
+export const assetUrl = (path: string) => `${BASE}${path}`
 
 function authHeaders() {
   const token = localStorage.getItem('token')
@@ -39,6 +43,23 @@ export const login = (email: string, password: string) =>
 // User
 export const getMe = () => request<User>('/user/me')
 
+export async function uploadAvatar(file: File) {
+  const token = localStorage.getItem('token')
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await fetch(`${BASE}/user/avatar`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }))
+    throw new Error(err?.message ?? res.statusText)
+  }
+  return res.json() as Promise<{ avatarUrl: string }>
+}
+
 // Check-in
 function localDateStr() {
   const d = new Date()
@@ -58,6 +79,9 @@ export const getTodayStatus = () =>
   request<{ checkedIn: boolean }>(`/checkin/today?localDate=${localDateStr()}`)
 
 export const getCheckInHistory = () => request<CheckIn[]>('/checkin/history')
+
+// Points
+export const getPointHistory = () => request<PointTransaction[]>('/points/history')
 
 // Skins
 export const getSkins = () => request<Skin[]>('/skin')

@@ -16,8 +16,14 @@ public class User
     // Equipped skin (null = default green theme)
     public int? EquippedSkinId { get; set; }
 
+    // Avatar image, stored inline
+    public byte[]? AvatarData { get; set; }
+    public string? AvatarContentType { get; set; }
+    public DateTime? AvatarUpdatedAt { get; set; }
+
     // Navigation
     public ICollection<CheckIn> CheckIns { get; set; } = [];
     public ICollection<UserSkin> OwnedSkins { get; set; } = [];
     public ICollection<WorkoutRecord> WorkoutRecords { get; set; } = [];
+    public ICollection<PointTransaction> PointTransactions { get; set; } = [];
 }

@@ -4,10 +4,8 @@ import { useStore } from '../store'
 import { THEME_COLORS, type Skin } from '../types'
 
 export default function Store() {
-  const { user, setUser, setTheme } = useStore()
+  const { user, setUser, setTheme, pushToast } = useStore()
   const [skins, setSkins] = useState<Skin[]>([])
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
 
   useEffect(() => {
     getSkins().then(setSkins).catch(console.error)
@@ -15,46 +13,40 @@ export default function Store() {
   }, [])
 
   async function handlePurchase(skin: Skin) {
-    setMessage('')
-    setError('')
     try {
       const res = await purchaseSkin(skin.id)
-      setMessage(res.message)
+      pushToast(res.message, 'success')
       const [updatedSkins, updatedUser] = await Promise.all([getSkins(), getMe()])
       setSkins(updatedSkins)
       setUser(updatedUser)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Purchase failed')
+      pushToast(err instanceof Error ? err.message : 'Purchase failed')
     }
   }
 
   async function handleEquip(skin: Skin) {
-    setMessage('')
-    setError('')
     try {
       const res = await equipSkin(skin.id)
       setTheme(res.theme)
-      setMessage(`${skin.name} equipped!`)
+      pushToast(`${skin.name} equipped!`, 'success')
       const [updatedSkins, updatedUser] = await Promise.all([getSkins(), getMe()])
       setSkins(updatedSkins)
       setUser(updatedUser)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Equip failed')
+      pushToast(err instanceof Error ? err.message : 'Equip failed')
     }
   }
 
   async function handleUnequip() {
-    setMessage('')
-    setError('')
     try {
       await unequipSkin()
       setTheme('default')
-      setMessage('Switched back to default theme.')
+      pushToast('Switched back to default theme.', 'success')
       const [updatedSkins, updatedUser] = await Promise.all([getSkins(), getMe()])
       setSkins(updatedSkins)
       setUser(updatedUser)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to unequip')
+      pushToast(err instanceof Error ? err.message : 'Failed to unequip')
     }
   }
 
@@ -70,9 +62,6 @@ export default function Store() {
           </span>
         )}
       </div>
-
-      {message && <p className="text-sm font-medium" style={{ color: 'var(--primary)' }}>{message}</p>}
-      {error && <p className="text-red-500 text-sm">{error}</p>}
 
       {/* Default skin card */}
       <SkinCard

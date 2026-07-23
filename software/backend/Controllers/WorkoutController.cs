@@ -69,6 +69,14 @@ public class WorkoutController : ControllerBase
         {
             pointsEarned = DailyWorkoutBonus;
             user.Points += pointsEarned;
+
+            _db.PointTransactions.Add(new PointTransaction
+            {
+                UserId = UserId,
+                Amount = pointsEarned,
+                Reason = $"Workout ({req.WorkoutType})",
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         var record = new WorkoutRecord

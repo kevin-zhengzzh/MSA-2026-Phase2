@@ -11,9 +11,10 @@ function parseLocalDate(dateStr: string) {
 
 export default function History() {
   const [history, setHistory] = useState<CheckIn[]>([])
+  const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
-    getCheckInHistory().then(setHistory).catch(console.error)
+    getCheckInHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
 
   // Group check-ins by month for display
@@ -28,7 +29,17 @@ export default function History() {
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold text-gray-800">Check-in History</h1>
 
-      {history.length === 0 ? (
+      {initialLoading ? (
+        <div className="bg-white rounded-2xl shadow p-5 flex flex-col gap-3">
+          <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 py-1">
+              <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
+              <div className="h-4 w-40 rounded bg-gray-100 animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : history.length === 0 ? (
         <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
           <p className="text-4xl mb-3">📋</p>
           <p>No check-ins yet. Head to the dashboard to start!</p>

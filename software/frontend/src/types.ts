@@ -8,6 +8,7 @@ export interface User {
   createdAt: string
   equippedSkinId: number | null
   equippedTheme: string
+  avatarUrl: string | null
 }
 
 export interface CheckIn {
@@ -47,6 +48,13 @@ export interface Skin {
   theme: string
   isOwned: boolean
   isEquipped: boolean
+}
+
+export interface PointTransaction {
+  id: number
+  amount: number
+  reason: string
+  createdAt: string
 }
 
 export interface AuthResponse {

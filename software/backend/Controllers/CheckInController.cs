@@ -87,6 +87,14 @@ public class CheckInController : ControllerBase
         var earned = 10 + bonus;
         user.Points += earned;
 
+        _db.PointTransactions.Add(new PointTransaction
+        {
+            UserId = UserId,
+            Amount = earned,
+            Reason = "Daily check-in",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new CheckInResult(checkIn.Id, today, earned, user.Points, user.Streak));
