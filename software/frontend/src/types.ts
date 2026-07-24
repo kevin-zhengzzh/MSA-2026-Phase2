@@ -38,6 +38,8 @@ export interface CheckInResult {
   pointsEarned: number
   totalPoints: number
   streak: number
+  createdAt: string
+  percentSurpassed: number
 }
 
 export interface Skin {

@@ -5,5 +5,7 @@ public record CheckInResult(
     DateOnly Date,
     int PointsEarned,
     int TotalPoints,
-    int Streak
+    int Streak,
+    DateTime CreatedAt,
+    int PercentSurpassed
 );

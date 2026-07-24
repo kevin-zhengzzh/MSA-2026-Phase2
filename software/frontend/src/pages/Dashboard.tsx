@@ -18,7 +18,10 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.allSettled([
       getMe().then(setUser),
-      getTodayStatus().then((r) => setCheckedInToday(r.checkedIn)),
+      getTodayStatus().then((r) => {
+        setCheckedInToday(r.checkedIn)
+        if (r.result) setLastResult(r.result)
+      }),
     ]).then(() => setInitialLoading(false))
   }, [])
 
@@ -59,6 +62,7 @@ export default function Dashboard() {
       const result = await checkInToday()
       setLastResult(result)
       setCheckedInToday(true)
+      pushToast(`+${result.pointsEarned} pts ready to claim in Daily Tasks · ${result.streak}-day streak`, 'success')
       getTodayRewards().then(setRewardStatus).catch(console.error)
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Check-in failed')
@@ -94,8 +98,8 @@ export default function Dashboard() {
                 <div className="text-6xl">✅</div>
                 <p className="text-xl font-semibold text-gray-700">You checked in today!</p>
                 {lastResult && (
-                  <p className="text-sm" style={{ color: 'var(--primary)' }}>
-                    +{lastResult.pointsEarned} pts ready to claim in Daily Tasks · {lastResult.streak}-day streak
+                  <p className="text-sm text-gray-500">
+                    You've surpassed <span className="font-bold" style={{ color: 'var(--primary)' }}>{lastResult.percentSurpassed}%</span> of users today
                   </p>
                 )}
                 <p className="text-gray-400 text-sm">Come back tomorrow to keep your streak going.</p>

@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import { assetUrl, getLeaderboard } from '../api'
-import type { LeaderboardEntry } from '../types'
+import PersonIcon from '../components/PersonIcon'
+import { THEME_COLORS, type LeaderboardEntry } from '../types'
 
 const MEDALS = ['🥇', '🥈', '🥉']
+
+// Other users' default avatar is theme-independent — it shouldn't shift
+// color just because the viewer equipped a different skin for themselves.
+const DEFAULT_AVATAR_COLOR = THEME_COLORS.default.primary
 
 export default function Rank() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
@@ -47,10 +52,10 @@ export default function Rank() {
                   <img src={assetUrl(e.avatarUrl)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                 ) : (
                   <span
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                    style={{ backgroundColor: 'var(--primary)' }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: e.isMe ? 'var(--primary)' : DEFAULT_AVATAR_COLOR }}
                   >
-                    {e.username.charAt(0).toUpperCase()}
+                    <PersonIcon className="w-4 h-4 text-white" />
                   </span>
                 )}
 

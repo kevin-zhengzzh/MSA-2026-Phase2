@@ -82,7 +82,7 @@ export const checkInToday = (note?: string) =>
   })
 
 export const getTodayStatus = () =>
-  request<{ checkedIn: boolean }>(`/checkin/today?localDate=${localDateStr()}`)
+  request<{ checkedIn: boolean; result: CheckInResult | null }>(`/checkin/today?localDate=${localDateStr()}`)
 
 export const getCheckInHistory = () => request<CheckIn[]>('/checkin/history')
 

@@ -38,7 +38,28 @@ public class CheckInController : ControllerBase
         var today = ResolveToday(localDate);
         var checkIn = await _db.CheckIns
             .FirstOrDefaultAsync(c => c.UserId == UserId && c.Date == today);
-        return Ok(new { checkedIn = checkIn is not null });
+
+        if (checkIn is null)
+            return Ok(new { checkedIn = false, result = (CheckInResult?)null });
+
+        var user = await _db.Users.FindAsync(UserId);
+        var percentSurpassed = await ComputePercentSurpassed(today, checkIn.CreatedAt);
+        var result = new CheckInResult(checkIn.Id, today, checkIn.PointsEarned, user!.Points, user.Streak, checkIn.CreatedAt, percentSurpassed);
+        return Ok(new { checkedIn = true, result });
+    }
+
+    // Percentile among today's check-ins: what share of everyone who
+    // checked in today did we beat by checking in earlier?
+    private async Task<int> ComputePercentSurpassed(DateOnly date, DateTime createdAt)
+    {
+        var todayCheckIns = await _db.CheckIns
+            .Where(c => c.Date == date)
+            .Select(c => c.CreatedAt)
+            .ToListAsync();
+        var laterCount = todayCheckIns.Count(c => c > createdAt);
+        return todayCheckIns.Count > 1
+            ? (int)Math.Round(laterCount * 100.0 / (todayCheckIns.Count - 1))
+            : 100;
     }
 
     [HttpGet("history")]
@@ -92,6 +113,8 @@ public class CheckInController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new CheckInResult(checkIn.Id, today, earned, user.Points, user.Streak));
+        var percentSurpassed = await ComputePercentSurpassed(today, checkIn.CreatedAt);
+
+        return Ok(new CheckInResult(checkIn.Id, today, earned, user.Points, user.Streak, checkIn.CreatedAt, percentSurpassed));
     }
 }
