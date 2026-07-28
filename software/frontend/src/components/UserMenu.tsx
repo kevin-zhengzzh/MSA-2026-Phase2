@@ -47,7 +47,9 @@ export default function UserMenu({
         {username && <span className="text-sm font-medium max-w-[10rem] truncate">{username}</span>}
       </div>
 
-      <div className="absolute right-0 top-full pt-2 hidden group-hover:block z-20">
+      {/* Centered under the trigger pill (not right-aligned to it) so the
+          wider dropdown panel overhangs evenly on both sides. */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 hidden group-hover:block z-20">
         <div className="bg-white rounded-lg shadow-lg py-3 w-52 text-sm text-gray-700">
           <div className="flex flex-col items-center gap-2 pb-3 mb-1 border-b border-gray-100 px-4">
             <div className="relative w-16 h-16 rounded-full flex-shrink-0 group/avatar">

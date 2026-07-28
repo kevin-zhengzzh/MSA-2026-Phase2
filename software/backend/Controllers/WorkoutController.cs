@@ -81,7 +81,7 @@ public class WorkoutController : ControllerBase
         _db.WorkoutRecords.Add(record);
         await _db.SaveChangesAsync();
 
-        return Ok(new WorkoutSubmitResult(record.Id, record.WorkoutType, record.Calories, record.CreatedAt, pointsEarned, user.Points));
+        return Ok(new WorkoutSubmitResult(record.Id, record.WorkoutType, record.Calories, record.Date, record.CreatedAt, pointsEarned, user.Points));
     }
 
     [HttpGet]
@@ -90,7 +90,7 @@ public class WorkoutController : ControllerBase
         var records = await _db.WorkoutRecords
             .Where(w => w.UserId == UserId)
             .OrderByDescending(w => w.CreatedAt)
-            .Select(w => new WorkoutRecordResult(w.Id, w.WorkoutType, w.Calories, w.CreatedAt))
+            .Select(w => new WorkoutRecordResult(w.Id, w.WorkoutType, w.Calories, w.Date, w.CreatedAt))
             .ToListAsync();
         return Ok(records);
     }
@@ -109,7 +109,7 @@ public class WorkoutController : ControllerBase
         record.Calories = req.Calories;
         await _db.SaveChangesAsync();
 
-        return Ok(new WorkoutRecordResult(record.Id, record.WorkoutType, record.Calories, record.CreatedAt));
+        return Ok(new WorkoutRecordResult(record.Id, record.WorkoutType, record.Calories, record.Date, record.CreatedAt));
     }
 
     [HttpDelete("{id}")]

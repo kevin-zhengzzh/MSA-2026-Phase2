@@ -20,6 +20,12 @@ function fuzzyMatch(query: string, target: string): boolean {
   return qi === q.length
 }
 
+// WorkoutRecord.date is a plain "YYYY-MM-DD" — parse as local midnight so it
+// displays as the same calendar day the user recorded it under.
+function parseLocalDate(dateStr: string) {
+  return new Date(`${dateStr}T00:00:00`)
+}
+
 export default function RecordHistory() {
   const pushToast = useStore((s) => s.pushToast)
   const [history, setHistory] = useState<WorkoutRecord[]>([])
@@ -94,14 +100,23 @@ export default function RecordHistory() {
     }
   }
 
-  // Group the current page's workout records by month for display
+  // Group the current page's workout records by month, then by day within
+  // each month, so each day's records sit together in their own frame.
   const grouped = pageItems.reduce<Record<string, WorkoutRecord[]>>((acc, w) => {
-    const d = new Date(w.createdAt)
-    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const month = w.date.slice(0, 7)
     if (!acc[month]) acc[month] = []
     acc[month].push(w)
     return acc
   }, {})
+
+  function groupByDay(entries: WorkoutRecord[]) {
+    const byDay = entries.reduce<Record<string, WorkoutRecord[]>>((acc, w) => {
+      if (!acc[w.date]) acc[w.date] = []
+      acc[w.date].push(w)
+      return acc
+    }, {})
+    return Object.entries(byDay).sort(([a], [b]) => b.localeCompare(a))
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,50 +160,61 @@ export default function RecordHistory() {
               <h2 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3">
                 {new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
-              <ul className="divide-y divide-gray-100">
-                {entries.map((w) => (
-                  <li key={w.id} className="py-3 flex items-center gap-3">
-                    <span
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                      style={{ backgroundColor: 'var(--primary)' }}
-                    >
-                      🏋️
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">
-                        {new Date(w.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        {' · '}{w.workoutType}
+              <div className="flex flex-col gap-3">
+                {groupByDay(entries).map(([date, dayEntries]) => (
+                  <div key={date} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-center justify-between mb-1.5 px-1">
+                      <p className="text-xs font-semibold text-gray-500">
+                        {parseLocalDate(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{w.calories} kcal</p>
+                      <p className="text-xs text-gray-400">
+                        {dayEntries.reduce((sum, w) => sum + w.calories, 0)} kcal total
+                      </p>
                     </div>
-                    <button
-                      onClick={() => startEdit(w)}
-                      aria-label="Edit"
-                      title="Edit"
-                      className="text-gray-400 hover:text-gray-600 cursor-pointer p-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteId(w.id)}
-                      disabled={deletingId === w.id}
-                      aria-label="Delete"
-                      title="Delete"
-                      className="text-red-400 hover:text-red-600 cursor-pointer disabled:opacity-60 p-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <path d="M10 11v6" />
-                        <path d="M14 11v6" />
-                      </svg>
-                    </button>
-                  </li>
+                    <ul className="divide-y divide-gray-200">
+                      {dayEntries.map((w) => (
+                        <li key={w.id} className="py-2.5 flex items-center gap-3">
+                          <span
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                            style={{ backgroundColor: 'var(--primary)' }}
+                          >
+                            🏋️
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800">{w.workoutType}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{w.calories} kcal</p>
+                          </div>
+                          <button
+                            onClick={() => startEdit(w)}
+                            aria-label="Edit"
+                            title="Edit"
+                            className="text-gray-400 hover:text-gray-600 cursor-pointer p-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(w.id)}
+                            disabled={deletingId === w.id}
+                            aria-label="Delete"
+                            title="Delete"
+                            className="text-red-400 hover:text-red-600 cursor-pointer disabled:opacity-60 p-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                              <path d="M10 11v6" />
+                              <path d="M14 11v6" />
+                            </svg>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
               <p className="text-xs text-gray-400 mt-3 text-right">
                 {entries.length} record{entries.length !== 1 ? 's' : ''} this month
               </p>

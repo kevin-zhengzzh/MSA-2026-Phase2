@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { checkInToday, getMe, getTodayRewards, getTodayStatus, recordWorkout } from '../api'
+import { checkInToday, getCheckInHistory, getMe, getTodayRewards, getTodayStatus, getWorkoutHistory, recordWorkout, updateWeeklyGoal } from '../api'
 import { useStore } from '../store'
-import { WORKOUT_TYPES, type CheckInResult } from '../types'
+import { WORKOUT_TYPES, type CheckIn, type CheckInResult, type WorkoutRecord } from '../types'
+import CalorieBarChart from '../components/CalorieBarChart'
+import WeeklyGoalDonut from '../components/WeeklyGoalDonut'
+import CheckInHeatmap from '../components/CheckInHeatmap'
 
 export default function Dashboard() {
   const { user, setUser, checkedInToday, setCheckedInToday, setRewardStatus, pushToast, setStoreOpen } = useStore()
   const [loading, setLoading] = useState(false)
   const [lastResult, setLastResult] = useState<CheckInResult | null>(null)
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutRecord[]>([])
+  const [checkInHistory, setCheckInHistory] = useState<CheckIn[]>([])
 
   const [showRecordModal, setShowRecordModal] = useState(false)
   const [workoutType, setWorkoutType] = useState<string>(WORKOUT_TYPES[0])
@@ -22,8 +27,25 @@ export default function Dashboard() {
         setCheckedInToday(r.checkedIn)
         if (r.result) setLastResult(r.result)
       }),
+      getWorkoutHistory().then(setWorkoutHistory),
+      getCheckInHistory().then(setCheckInHistory),
     ]).then(() => setInitialLoading(false))
   }, [])
+
+  function refreshWorkoutHistory() {
+    getWorkoutHistory().then(setWorkoutHistory).catch(console.error)
+  }
+
+  async function handleGoalSave(newGoal: number) {
+    try {
+      await updateWeeklyGoal(newGoal)
+      if (user) setUser({ ...user, weeklyCalorieGoal: newGoal })
+      pushToast('Weekly goal updated!', 'success')
+    } catch (err: unknown) {
+      pushToast(err instanceof Error ? err.message : 'Failed to update goal')
+      throw err
+    }
+  }
 
   function openRecordModal() {
     setWorkoutType(WORKOUT_TYPES[0])
@@ -42,6 +64,7 @@ export default function Dashboard() {
     try {
       const result = await recordWorkout(workoutType, caloriesNum)
       getTodayRewards().then(setRewardStatus).catch(console.error)
+      refreshWorkoutHistory()
       pushToast(
         result.pointsEarned > 0
           ? `Workout recorded! Claim your +${result.pointsEarned} pts in Daily Tasks.`
@@ -62,6 +85,7 @@ export default function Dashboard() {
       const result = await checkInToday()
       setLastResult(result)
       setCheckedInToday(true)
+      setCheckInHistory((h) => [{ id: result.id, date: result.date, note: null, createdAt: result.createdAt }, ...h])
       pushToast(`+${result.pointsEarned} pts ready to claim in Daily Tasks · ${result.streak}-day streak`, 'success')
       getTodayRewards().then(setRewardStatus).catch(console.error)
     } catch (err: unknown) {
@@ -72,58 +96,69 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-8">
-      <h1 className="text-3xl font-bold text-gray-800 self-start">Dashboard</h1>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+        {user && (
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Points" value={user.points} onInfoClick={() => setShowPointsHint(true)} />
+            <StatCard label="Current streak" value={`${user.streak} day${user.streak !== 1 ? 's' : ''}`} />
+          </div>
+        )}
+      </div>
 
-      {/* Stats row */}
-      {user && (
-        <div className="w-full grid grid-cols-2 gap-4">
-          <StatCard label="Points" value={user.points} onInfoClick={() => setShowPointsHint(true)} />
-          <StatCard label="Current streak" value={`${user.streak} day${user.streak !== 1 ? 's' : ''}`} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Charts — left side on desktop, below the main content on mobile */}
+        <div className="flex flex-col gap-6 order-2 lg:order-1">
+          <CalorieBarChart records={workoutHistory} />
+          {user && <WeeklyGoalDonut records={workoutHistory} goal={user.weeklyCalorieGoal} onSave={handleGoalSave} />}
         </div>
-      )}
 
-      {initialLoading ? (
-        <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
-          <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
-          <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
-        </div>
-      ) : (
-        <>
-          {/* Big check-in button */}
-          <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-            {checkedInToday ? (
-              <>
-                <div className="text-6xl">✅</div>
-                <p className="text-xl font-semibold text-gray-700">You checked in today!</p>
-                {lastResult && (
-                  <p className="text-sm text-gray-500">
-                    You've surpassed <span className="font-bold" style={{ color: 'var(--primary)' }}>{lastResult.percentSurpassed}%</span> of users today
-                  </p>
-                )}
-                <p className="text-gray-400 text-sm">Come back tomorrow to keep your streak going.</p>
-              </>
-            ) : (
-              <>
-                <div className="text-6xl">🏃</div>
-                <p className="text-xl font-semibold text-gray-700">Did you exercise today?</p>
-                <p className="text-gray-400 text-sm">Hit the button to log your workout and earn points.</p>
+        {/* Existing dashboard content — right side on desktop */}
+        <div className="flex flex-col items-center gap-8 order-1 lg:order-2">
+          {initialLoading ? (
+            <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
+              <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
+              <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
+            </div>
+          ) : (
+            <>
+              {/* Big check-in button — same icon/title/subtitle/button structure
+                  in both states so the card never resizes; the button stays
+                  visible after checking in, just disabled and greyed out
+                  instead of disappearing. */}
+              <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
+                <div className="text-6xl">{checkedInToday ? '✅' : '🏃'}</div>
+                <p className="text-xl font-semibold text-gray-700">
+                  {checkedInToday ? 'You checked in today!' : 'Did you exercise today?'}
+                </p>
+                <p className="text-gray-400 text-sm text-center">
+                  {checkedInToday
+                    ? lastResult
+                      ? <>You've surpassed <span className="font-bold" style={{ color: 'var(--primary)' }}>{lastResult.percentSurpassed}%</span> of users today. Come back tomorrow!</>
+                      : 'Come back tomorrow to keep your streak going.'
+                    : 'Hit the button to log your workout and earn points.'}
+                </p>
                 <button
                   onClick={handleCheckIn}
-                  disabled={loading}
-                  className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
-                  style={{ backgroundColor: 'var(--primary)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
+                  disabled={loading || checkedInToday}
+                  className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 disabled:active:scale-100 cursor-pointer disabled:cursor-not-allowed"
+                  style={{ backgroundColor: checkedInToday ? '#9ca3af' : 'var(--primary)' }}
+                  onMouseEnter={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary-hover)' }}
+                  onMouseLeave={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary)' }}
                 >
-                  {loading ? 'Checking in…' : '✓ Check In'}
+                  {checkedInToday ? '✓ Checked In' : loading ? 'Checking in…' : '✓ Check In'}
                 </button>
-              </>
-            )}
+              </div>
+            </>
+          )}
+
+          <div className="w-full">
+            <CheckInHeatmap checkIns={checkInHistory} records={workoutHistory} />
           </div>
-        </>
-      )}
+        </div>
+      </div>
 
       {/* Points hint modal */}
       {showPointsHint && (

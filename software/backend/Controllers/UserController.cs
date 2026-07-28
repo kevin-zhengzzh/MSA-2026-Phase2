@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using backend.Data;
+using backend.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public class UserController : ControllerBase
                 u.CreatedAt,
                 u.EquippedSkinId,
                 u.AvatarUpdatedAt,
+                u.WeeklyCalorieGoal,
                 HasAvatar = u.AvatarData != null,
                 EquippedTheme = u.EquippedSkinId == null
                     ? "default"
@@ -54,8 +56,24 @@ public class UserController : ControllerBase
             raw.CreatedAt,
             raw.EquippedSkinId,
             raw.EquippedTheme,
+            raw.WeeklyCalorieGoal,
             AvatarUrl = raw.HasAvatar ? $"/user/avatar/{raw.Id}?v={raw.AvatarUpdatedAt!.Value.Ticks}" : null
         });
+    }
+
+    [HttpPut("weekly-goal")]
+    public async Task<IActionResult> UpdateWeeklyGoal(UpdateWeeklyGoalRequest req)
+    {
+        if (req.WeeklyCalorieGoal < 1 || req.WeeklyCalorieGoal > 100000)
+            return BadRequest(new { message = "Weekly calorie goal must be between 1 and 100,000." });
+
+        var user = await _db.Users.FindAsync(UserId);
+        if (user is null) return NotFound();
+
+        user.WeeklyCalorieGoal = req.WeeklyCalorieGoal;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { weeklyCalorieGoal = user.WeeklyCalorieGoal });
     }
 
     private static readonly HashSet<string> AllowedAvatarTypes = new(StringComparer.OrdinalIgnoreCase)

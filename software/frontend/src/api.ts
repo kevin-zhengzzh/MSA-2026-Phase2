@@ -46,6 +46,12 @@ export const login = (email: string, password: string) =>
 // User
 export const getMe = () => request<User>('/user/me')
 
+export const updateWeeklyGoal = (weeklyCalorieGoal: number) =>
+  request<{ weeklyCalorieGoal: number }>('/user/weekly-goal', {
+    method: 'PUT',
+    body: JSON.stringify({ weeklyCalorieGoal }),
+  })
+
 export async function uploadAvatar(file: File) {
   const token = localStorage.getItem('token')
   const formData = new FormData()

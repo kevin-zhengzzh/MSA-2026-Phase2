@@ -9,6 +9,7 @@ export interface User {
   equippedSkinId: number | null
   equippedTheme: string
   avatarUrl: string | null
+  weeklyCalorieGoal: number
 }
 
 export interface CheckIn {
@@ -20,10 +21,23 @@ export interface CheckIn {
 
 export const WORKOUT_TYPES = ['Running', 'Cycling', 'Swimming', 'Gym', 'Yoga', 'Other'] as const
 
+// Fixed categorical color per workout type (never reassigned/cycled), so a
+// type keeps the same identity color across charts regardless of which
+// types have data in a given period.
+export const WORKOUT_TYPE_COLORS: Record<string, string> = {
+  Running: '#2a78d6',
+  Cycling: '#eb6834',
+  Swimming: '#1baf7a',
+  Gym: '#eda100',
+  Yoga: '#e87ba4',
+  Other: '#008300',
+}
+
 export interface WorkoutRecord {
   id: number
   workoutType: string
   calories: number
+  date: string
   createdAt: string
 }
 

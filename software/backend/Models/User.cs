@@ -13,6 +13,9 @@ public class User
     public int Streak { get; set; } = 0;
     public DateTime? LastCheckIn { get; set; }
 
+    // User-configurable target for the weekly calorie chart
+    public int WeeklyCalorieGoal { get; set; } = 2000;
+
     // Equipped skin (null = default green theme)
     public int? EquippedSkinId { get; set; }
 

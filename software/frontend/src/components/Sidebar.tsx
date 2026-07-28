@@ -8,7 +8,7 @@ const links = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-56 shrink-0 fixed top-14 left-0 z-30 bg-white border-r border-gray-200 h-[calc(100vh-3.5rem)] overflow-y-auto py-6 px-3">
+    <aside className="w-56 shrink-0 sticky top-22 bg-white rounded-2xl shadow p-3">
       <nav className="flex flex-col gap-1">
         {links.map(({ to, label, end }) => (
           <NavLink
