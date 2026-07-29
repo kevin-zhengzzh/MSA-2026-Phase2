@@ -107,7 +107,7 @@ function levelForCalories(calories: number, maxCalories: number) {
 }
 
 const LEVEL_COLORS = [
-  '#e5e7eb',
+  'var(--bg-inset)',
   'color-mix(in srgb, var(--primary) 30%, white)',
   'color-mix(in srgb, var(--primary) 55%, white)',
   'color-mix(in srgb, var(--primary) 80%, white)',
@@ -116,16 +116,52 @@ const LEVEL_COLORS = [
 
 interface Hover {
   key: string
-  text: string
+  valueLabel: string
+  dateLabel: string
   x: number
   y: number
   below: boolean
 }
 
+// Hoisted to module scope — defining this inside CheckInHeatmap's render
+// would recreate the function (and thus its component identity) on every
+// render, so React would unmount/remount every cell — replaying the
+// cell-in entrance animation — on any parent re-render, including the ones
+// hovering a cell triggers (setHover). A stable reference here means React
+// just updates props on the existing DOM nodes instead.
+function Cell({
+  day,
+  index,
+  level,
+  today,
+  onEnter,
+  onLeave,
+}: {
+  day: Date
+  index: number
+  level: number
+  today: Date
+  onEnter: (e: React.PointerEvent | React.FocusEvent, day: Date) => void
+  onLeave: (day: Date) => void
+}) {
+  if (day > today) return <div />
+  return (
+    <div
+      className="rounded-[3px] cursor-pointer min-w-[3px] min-h-[3px] cell-in"
+      style={{ backgroundColor: LEVEL_COLORS[level], animationDelay: `${Math.min(index * 2, 300)}ms` }}
+      onPointerEnter={(e) => onEnter(e, day)}
+      onPointerLeave={() => onLeave(day)}
+      onFocus={(e) => onEnter(e, day)}
+      onBlur={() => onLeave(day)}
+      tabIndex={0}
+    />
+  )
+}
+
 export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckIn[]; records: WorkoutRecord[] }) {
   const [period, setPeriod] = useState<Period>('year')
   const [hover, setHover] = useState<Hover | null>(null)
-  const today = startOfDay(new Date())
+  const today = useMemo(() => startOfDay(new Date()), [])
 
   const weeks = useMemo(() => buildWeeks(period, today), [period, today])
   const cells = useMemo(() => weeks.flat(), [weeks])
@@ -195,7 +231,10 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
     const level = levelByDate.get(key) ?? 0
     const calories = caloriesByDate.get(key) ?? 0
     const dateLabel = `${day.toLocaleDateString('en-US', { month: 'long' })} ${ordinal(day.getDate())}`
-    return { key, level, text: level > 0 ? `${calories.toLocaleString()} kcal on ${dateLabel}.` : `No check-in on ${dateLabel}.` }
+    // Bold value + dimmed date joined by " · " — same two-tier hierarchy as
+    // the calorie bar chart's tooltip, instead of one flat sentence.
+    const valueLabel = level > 0 ? `${calories.toLocaleString()} kcal` : 'No check-in'
+    return { key, level, valueLabel, dateLabel }
   }
 
   // Tooltip is rendered fixed-position (viewport coordinates), computed from
@@ -207,7 +246,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
   // event before the pointer moved on). Delaying means only a cell the
   // pointer actually settles on ever shows anything.
   function handleEnter(e: React.PointerEvent | React.FocusEvent, day: Date) {
-    const { key, text } = tooltipFor(day)
+    const { key, valueLabel, dateLabel } = tooltipFor(day)
     const rect = e.currentTarget.getBoundingClientRect()
     const cardRect = cardRef.current?.getBoundingClientRect()
     const below = cardRect ? rect.top - cardRect.top < 70 : rect.top < 70
@@ -216,7 +255,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
     // Always centered exactly on the hovered cell — bubble and arrow move as
     // one unit (single shared transform), so the arrow can never drift onto
     // a neighboring cell.
-    const nextHover: Hover = { key, text, x: rect.left + rect.width / 2, y: below ? rect.bottom : rect.top, below }
+    const nextHover: Hover = { key, valueLabel, dateLabel, x: rect.left + rect.width / 2, y: below ? rect.bottom : rect.top, below }
     hoverTimerRef.current = window.setTimeout(() => {
       hoverTimerRef.current = null
       setHover(nextHover)
@@ -227,29 +266,13 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
     setHover((cur) => (cur?.key === key ? null : cur))
   }
 
-  function Cell({ day }: { day: Date }) {
-    if (day > today) return <div />
-    const { key, level } = tooltipFor(day)
-    return (
-      <div
-        className="rounded-[3px] cursor-pointer min-w-[3px] min-h-[3px]"
-        style={{ backgroundColor: LEVEL_COLORS[level] }}
-        onPointerEnter={(e) => handleEnter(e, day)}
-        onPointerLeave={() => handleLeave(key)}
-        onFocus={(e) => handleEnter(e, day)}
-        onBlur={() => handleLeave(key)}
-        tabIndex={0}
-      />
-    )
-  }
-
   return (
-    <div ref={cardRef} className="bg-white rounded-2xl shadow p-5">
+    <div ref={cardRef} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-700">
+        <h2 className="font-semibold text-[var(--text-secondary)]">
           <span className="font-bold" style={{ color: 'var(--primary)' }}>{countInRange}</span> check-in{countInRange !== 1 ? 's' : ''} {PERIOD_LABEL[period]}
         </h2>
-        <div className="relative flex text-xs font-medium bg-gray-100 rounded-full p-1">
+        <div className="relative flex text-xs font-medium bg-[var(--bg-inset)] rounded-full p-1">
           {/* Fixed width on both the sliding pill and the buttons — a
               percentage-width pill can't line up with auto/content-width
               buttons of different label lengths, which overflowed the
@@ -265,7 +288,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
-              className={`relative z-10 w-14 py-1 rounded-full transition cursor-pointer ${period === p.key ? '' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`relative z-10 w-14 py-1 rounded-full transition cursor-pointer ${period === p.key ? '' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
               style={period === p.key ? { color: 'var(--primary-text)' } : undefined}
             >
               {p.label}
@@ -274,13 +297,17 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
         </div>
       </div>
 
+      {/* Centers the calendar block in whatever extra height the row-aligned
+          card frame has, instead of leaving it glued to the top with dead
+          space below. */}
+      <div className="flex-1 flex flex-col justify-center">
       {period === 'year' ? (
         <div className="flex gap-2">
           <div className="flex-shrink-0">
             <div style={{ height: HEADER_AREA_HEIGHT }} />
             <div className="flex flex-col" style={{ height: GRID_HEIGHT }}>
               {DAY_LABELS.map((label, i) => (
-                <div key={i} className="flex-1 flex items-center text-[10px] text-gray-400 leading-none">
+                <div key={i} className="flex-1 flex items-center text-[10px] text-[var(--text-muted)] leading-none">
                   {label}
                 </div>
               ))}
@@ -288,7 +315,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="relative text-[10px] text-gray-400" style={{ height: HEADER_AREA_HEIGHT }}>
+            <div className="relative text-[10px] text-[var(--text-muted)]" style={{ height: HEADER_AREA_HEIGHT }}>
               {monthLabels.map((m) => (
                 <span
                   key={m.colIndex}
@@ -300,6 +327,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
               ))}
             </div>
             <div
+              key={period}
               className="grid"
               style={{
                 height: GRID_HEIGHT,
@@ -310,7 +338,15 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
               }}
             >
               {cells.map((day, i) => (
-                <Cell key={i} day={day} />
+                <Cell
+                  key={i}
+                  day={day}
+                  index={i}
+                  level={levelByDate.get(toKey(day)) ?? 0}
+                  today={today}
+                  onEnter={handleEnter}
+                  onLeave={(d) => handleLeave(toKey(d))}
+                />
               ))}
             </div>
           </div>
@@ -320,17 +356,18 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
         // run left-to-right) and weeks stack vertically, which reads better
         // than several skinny columns for a single month's span.
         <div>
-          <div className="text-[10px] text-gray-400 leading-none" style={{ height: TITLE_ROW_HEIGHT }}>
+          <div className="text-[10px] text-[var(--text-muted)] leading-none" style={{ height: TITLE_ROW_HEIGHT }}>
             {today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </div>
           <div className="grid" style={{ gap: GRID_GAP, height: DAY_HEADER_ROW_HEIGHT, gridTemplateColumns: 'repeat(7, 1fr)' }}>
             {DAY_HEADER_LABELS.map((label, i) => (
-              <div key={i} className="text-[10px] text-gray-400 text-center leading-none">
+              <div key={i} className="text-[10px] text-[var(--text-muted)] text-center leading-none">
                 {label}
               </div>
             ))}
           </div>
           <div
+            key={period}
             className="grid"
             style={{
               height: GRID_HEIGHT,
@@ -341,18 +378,27 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
             }}
           >
             {cells.map((day, i) => (
-              <Cell key={i} day={day} />
+              <Cell
+                key={i}
+                day={day}
+                index={i}
+                level={levelByDate.get(toKey(day)) ?? 0}
+                today={today}
+                onEnter={handleEnter}
+                onLeave={(d) => handleLeave(toKey(d))}
+              />
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-1.5 mt-3 text-[11px] text-gray-400">
+      <div className="flex items-center justify-end gap-1.5 mt-3 text-[11px] text-[var(--text-muted)]">
         <span>Less</span>
         {LEVEL_COLORS.map((color, i) => (
           <span key={i} className="rounded-[2px]" style={{ width: LEGEND_CELL, height: LEGEND_CELL, backgroundColor: color }} />
         ))}
         <span>More</span>
+      </div>
       </div>
 
       {hover && (
@@ -364,8 +410,9 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
             transform: `translate(-50%, ${hover.below ? '8px' : 'calc(-100% - 8px)'})`,
           }}
         >
-          <div className="relative bg-gray-800 text-white text-xs font-medium rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
-            {hover.text}
+          <div className="relative bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+            <span className="font-semibold">{hover.valueLabel}</span>
+            <span className="text-gray-300"> · {hover.dateLabel}</span>
             <div
               className={`absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45 ${hover.below ? 'bottom-full -mb-1' : 'top-full -mt-1'}`}
             />

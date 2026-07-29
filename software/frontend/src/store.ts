@@ -7,6 +7,7 @@ interface AppState {
   userId: number | null
   username: string | null
   setAuth: (token: string, userId: number, username: string) => void
+  setUsername: (username: string) => void
   clearAuth: () => void
 
   // User profile + gamification
@@ -43,6 +44,18 @@ interface AppState {
   // Tasks menu in the header can show it from any page
   rewardStatus: RewardStatus | null
   setRewardStatus: (status: RewardStatus | null) => void
+
+  // Bumped whenever a workout is recorded from the floating Record button
+  // (shared across pages) — pages with their own workout list watch this
+  // to know when to refetch
+  workoutRefreshKey: number
+  bumpWorkoutRefresh: () => void
+
+  // Bumped whenever rewards are claimed from the header's Daily Tasks menu
+  // (visible on every page, including Rank) — since points change, the
+  // leaderboard watches this to know when to refetch
+  leaderboardRefreshKey: number
+  bumpLeaderboardRefresh: () => void
 }
 
 export interface Toast {
@@ -63,11 +76,20 @@ export const useStore = create<AppState>((set) => ({
     set({ token, userId, username })
   },
 
+  setUsername: (username) => {
+    localStorage.setItem('username', username)
+    set((s) => ({ username, user: s.user ? { ...s.user, username } : s.user }))
+  },
+
   clearAuth: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userId')
     localStorage.removeItem('username')
     localStorage.removeItem('avatarUrl')
+    // Reset the actual DOM attribute too — activeTheme alone is just state,
+    // and the equipped skin's colors would otherwise persist on the
+    // login/landing pages after signing out.
+    document.documentElement.setAttribute('data-theme', 'default')
     set({ token: null, userId: null, username: null, user: null, cachedAvatarUrl: null, checkedInToday: false, activeTheme: 'default' })
   },
 
@@ -107,4 +129,10 @@ export const useStore = create<AppState>((set) => ({
 
   rewardStatus: null,
   setRewardStatus: (rewardStatus) => set({ rewardStatus }),
+
+  workoutRefreshKey: 0,
+  bumpWorkoutRefresh: () => set((s) => ({ workoutRefreshKey: s.workoutRefreshKey + 1 })),
+
+  leaderboardRefreshKey: 0,
+  bumpLeaderboardRefresh: () => set((s) => ({ leaderboardRefreshKey: s.leaderboardRefreshKey + 1 })),
 }))

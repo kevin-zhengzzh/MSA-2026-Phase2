@@ -51,6 +51,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
 builder.Services.AddScoped<IValidator<WorkoutRecordRequest>, WorkoutRecordRequestValidator>();
+builder.Services.AddScoped<IValidator<UpdateUsernameRequest>, UpdateUsernameRequestValidator>();
 
 var app = builder.Build();
 

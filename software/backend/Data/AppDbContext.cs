@@ -37,12 +37,15 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserSkin>()
             .HasKey(us => new { us.UserId, us.SkinId });
 
-        // Seed purchasable skins (null EquippedSkinId = default green theme)
+        // Seed purchasable skins (null EquippedSkinId = default green theme).
+        // Dark is reward-only — SkinController grants it automatically at a
+        // 7-day check-in streak instead of letting it be bought with points.
         modelBuilder.Entity<Skin>().HasData(
             new Skin { Id = 1, Name = "Ocean",    Description = "Cool blue tones.",          PointCost = 100, Theme = "ocean"    },
             new Skin { Id = 2, Name = "Sunset",   Description = "Warm orange energy.",       PointCost = 200, Theme = "sunset"   },
             new Skin { Id = 3, Name = "Midnight", Description = "Deep purple mystery.",      PointCost = 300, Theme = "midnight" },
-            new Skin { Id = 4, Name = "Cherry",   Description = "Bold pink for champions.",  PointCost = 500, Theme = "cherry"   }
+            new Skin { Id = 4, Name = "Cherry",   Description = "Bold pink for champions.",  PointCost = 500, Theme = "cherry"   },
+            new Skin { Id = 5, Name = "Dark",     Description = "Easy on the eyes at night. Earned at a 7-day streak.", PointCost = 0, Theme = "dark", IsReward = true }
         );
     }
 }

@@ -48,18 +48,19 @@ public class CheckInController : ControllerBase
         return Ok(new { checkedIn = true, result });
     }
 
-    // Percentile among today's check-ins: what share of everyone who
-    // checked in today did we beat by checking in earlier?
+    // Percentile among ALL other users — not just today's check-ins. Anyone
+    // who checked in later than us today, or hasn't checked in at all yet,
+    // counts as surpassed; only users who checked in earlier today don't.
     private async Task<int> ComputePercentSurpassed(DateOnly date, DateTime createdAt)
     {
-        var todayCheckIns = await _db.CheckIns
-            .Where(c => c.Date == date)
-            .Select(c => c.CreatedAt)
-            .ToListAsync();
-        var laterCount = todayCheckIns.Count(c => c > createdAt);
-        return todayCheckIns.Count > 1
-            ? (int)Math.Round(laterCount * 100.0 / (todayCheckIns.Count - 1))
-            : 100;
+        var totalOtherUsers = await _db.Users.CountAsync(u => u.Id != UserId);
+        if (totalOtherUsers == 0) return 100;
+
+        var earlierCount = await _db.CheckIns
+            .CountAsync(c => c.Date == date && c.UserId != UserId && c.CreatedAt < createdAt);
+
+        var surpassed = totalOtherUsers - earlierCount;
+        return (int)Math.Round(surpassed * 100.0 / totalOtherUsers);
     }
 
     [HttpGet("history")]
@@ -71,6 +72,29 @@ public class CheckInController : ControllerBase
             .Select(c => new { c.Id, c.Date, c.Note, c.CreatedAt })
             .ToListAsync();
         return Ok(history);
+    }
+
+    // Unlocks the reward-only Dark skin the first time a user's streak
+    // reaches 7 days — idempotent (checks ownership first) so it's safe to
+    // call on every check-in once the threshold has been passed.
+    private async Task GrantStreakRewardSkin(int streak)
+    {
+        if (streak < 7) return;
+
+        var alreadyOwnsReward = await _db.UserSkins
+            .AnyAsync(us => us.UserId == UserId && us.Skin.IsReward);
+        if (alreadyOwnsReward) return;
+
+        var rewardSkin = await _db.Skins.FirstOrDefaultAsync(s => s.IsReward);
+        if (rewardSkin is null) return;
+
+        _db.UserSkins.Add(new UserSkin
+        {
+            UserId = UserId,
+            SkinId = rewardSkin.Id,
+            UnlockedAt = DateTime.UtcNow,
+            Seen = false
+        });
     }
 
     [HttpPost]
@@ -110,6 +134,8 @@ public class CheckInController : ControllerBase
             Claimed = false
         };
         _db.CheckIns.Add(checkIn);
+
+        await GrantStreakRewardSkin(user.Streak);
 
         await _db.SaveChangesAsync();
 

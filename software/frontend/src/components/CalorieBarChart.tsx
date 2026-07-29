@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { WorkoutRecord } from '../types'
 
 type Period = 'week' | 'month' | 'year'
@@ -97,6 +97,16 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
   const maxValue = Math.max(0, ...buckets.map((b) => b.value))
   const niceMax = niceCeil(maxValue)
 
+  // Bars grow up from the baseline on load, and replay the same grow-in
+  // every time the Week/Month/Year scale changes — drop back to 0 first,
+  // then animate up to the new values, instead of just morphing between them.
+  const [grown, setGrown] = useState(false)
+  useEffect(() => {
+    setGrown(false)
+    const t = setTimeout(() => setGrown(true), 30)
+    return () => clearTimeout(t)
+  }, [period])
+
   const plotWidth = VB_WIDTH - PAD.left - PAD.right
   const plotHeight = VB_HEIGHT - PAD.top - PAD.bottom
   const slot = plotWidth / Math.max(buckets.length, 1)
@@ -105,10 +115,10 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
   const yTicks = [0, 0.5, 1].map((f) => Math.round(niceMax * f))
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5">
+    <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 h-full">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-700">Calories burned</h2>
-        <div className="relative flex text-xs font-medium bg-gray-100 rounded-full p-1">
+        <h2 className="font-semibold text-[var(--text-secondary)]">Calories burned</h2>
+        <div className="relative flex text-xs font-medium bg-[var(--bg-inset)] rounded-full p-1">
           {/* Fixed width on both the sliding pill and the buttons — a
               percentage-width pill can't line up with auto/content-width
               buttons of different label lengths ("Week" vs "Month"), which
@@ -124,7 +134,7 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
-              className={`relative z-10 w-14 py-1 rounded-full transition cursor-pointer ${period === p.key ? '' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`relative z-10 w-14 py-1 rounded-full transition cursor-pointer ${period === p.key ? '' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
               style={period === p.key ? { color: 'var(--primary-text)' } : undefined}
             >
               {p.label}
@@ -134,7 +144,7 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
       </div>
 
       {maxValue === 0 ? (
-        <div className="h-40 flex items-center justify-center text-sm text-gray-400">
+        <div className="h-40 flex items-center justify-center text-sm text-[var(--text-muted)]">
           No workouts recorded {period === 'week' ? 'this week' : period === 'month' ? 'this month' : 'this year'} yet.
         </div>
       ) : (
@@ -144,8 +154,8 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
               const y = PAD.top + plotHeight - (tick / niceMax) * plotHeight
               return (
                 <g key={tick}>
-                  <line x1={PAD.left} x2={VB_WIDTH - PAD.right} y1={y} y2={y} stroke="#e5e7eb" strokeWidth={1} />
-                  <text x={PAD.left - 8} y={y} textAnchor="end" dominantBaseline="middle" className="fill-gray-400" fontSize={11}>
+                  <line x1={PAD.left} x2={VB_WIDTH - PAD.right} y1={y} y2={y} stroke="var(--border)" strokeWidth={1} />
+                  <text x={PAD.left - 8} y={y} textAnchor="end" dominantBaseline="middle" className="fill-[var(--text-muted)]" fontSize={11}>
                     {tick.toLocaleString()}
                   </text>
                 </g>
@@ -154,7 +164,7 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
 
             {buckets.map((b, i) => {
               const x = PAD.left + i * slot + (slot - barWidth) / 2
-              const h = (b.value / niceMax) * plotHeight
+              const h = grown ? (b.value / niceMax) * plotHeight : 0
               const y = PAD.top + plotHeight - h
               const isHovered = hoverIdx === i
               return (
@@ -178,9 +188,14 @@ export default function CalorieBarChart({ records }: { records: WorkoutRecord[] 
                       rx={4}
                       fill="var(--primary)"
                       opacity={isHovered ? 1 : 0.85}
+                      // No transition while collapsed — the reset to 0 snaps
+                      // instantly so the grow-up (once `grown` flips back on)
+                      // reads as a clean replay instead of a competing tween
+                      // between the old and new heights.
+                      className={grown ? 'transition-[height,y,opacity] duration-500 ease-out' : ''}
                     />
                   )}
-                  <text x={x + barWidth / 2} y={VB_HEIGHT - 8} textAnchor="middle" className="fill-gray-400" fontSize={11}>
+                  <text x={x + barWidth / 2} y={VB_HEIGHT - 8} textAnchor="middle" className="fill-[var(--text-muted)]" fontSize={11}>
                     {b.label}
                   </text>
                 </g>

@@ -1,4 +1,4 @@
-import type { AuthResponse, CheckIn, CheckInResult, LeaderboardEntry, PointTransaction, RewardStatus, Skin, User, WorkoutRecord, WorkoutSubmitResult } from './types'
+import type { AuthResponse, CaloriesLeaderboardEntry, CheckIn, CheckinTodayLeaderboardEntry, CheckInResult, LeaderboardEntry, PointTransaction, RewardStatus, Skin, StreakLeaderboardEntry, User, WorkoutRecord, WorkoutSubmitResult } from './types'
 
 const ORIGIN = 'http://localhost:5000'
 const BASE = `${ORIGIN}/api`
@@ -52,6 +52,12 @@ export const updateWeeklyGoal = (weeklyCalorieGoal: number) =>
     body: JSON.stringify({ weeklyCalorieGoal }),
   })
 
+export const updateUsername = (username: string) =>
+  request<{ username: string }>('/user/username', {
+    method: 'PUT',
+    body: JSON.stringify({ username }),
+  })
+
 export async function uploadAvatar(file: File) {
   const token = localStorage.getItem('token')
   const formData = new FormData()
@@ -95,6 +101,16 @@ export const getCheckInHistory = () => request<CheckIn[]>('/checkin/history')
 // Leaderboard
 export const getLeaderboard = () => request<LeaderboardEntry[]>('/leaderboard')
 
+// Consecutive check-in streak, in days — not today's check-in time
+export const getStreakLeaderboard = () => request<StreakLeaderboardEntry[]>('/leaderboard/streak')
+
+// Calories burned today only
+export const getCaloriesLeaderboard = () => request<CaloriesLeaderboardEntry[]>(`/leaderboard/calories?localDate=${localDateStr()}`)
+
+// Who checked in earliest today — only users who've checked in today appear
+export const getCheckinTodayLeaderboard = () =>
+  request<CheckinTodayLeaderboardEntry[]>(`/leaderboard/checkin-today?localDate=${localDateStr()}`)
+
 // Points
 export const getPointHistory = () => request<PointTransaction[]>('/points/history')
 
@@ -112,6 +128,9 @@ export const getSkins = () => request<Skin[]>('/skin')
 
 export const purchaseSkin = (id: number) =>
   request<{ message: string; remainingPoints: number }>(`/skin/${id}/purchase`, { method: 'POST' })
+
+// Clears the "new skin" red-dot notification — call when the Store opens
+export const markSkinsSeen = () => request<void>('/skin/mark-seen', { method: 'PUT' })
 
 export const equipSkin = (id: number) =>
   request<{ theme: string }>(`/skin/${id}/equip`, { method: 'PUT' })

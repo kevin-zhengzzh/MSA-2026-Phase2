@@ -1,24 +1,33 @@
 import { useEffect, useState } from 'react'
-import { checkInToday, getCheckInHistory, getMe, getTodayRewards, getTodayStatus, getWorkoutHistory, recordWorkout, updateWeeklyGoal } from '../api'
+import { Link } from 'react-router-dom'
+import { checkInToday, getCheckInHistory, getMe, getTodayRewards, getTodayStatus, getWorkoutHistory, updateWeeklyGoal } from '../api'
 import { useStore } from '../store'
-import { WORKOUT_TYPES, type CheckIn, type CheckInResult, type WorkoutRecord } from '../types'
+import type { CheckIn, CheckInResult, WorkoutRecord } from '../types'
 import CalorieBarChart from '../components/CalorieBarChart'
 import WeeklyGoalDonut from '../components/WeeklyGoalDonut'
 import CheckInHeatmap from '../components/CheckInHeatmap'
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll'
+
+// Ticks every second so the header clock stays live while the page is open.
+function useNow() {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return now
+}
 
 export default function Dashboard() {
-  const { user, setUser, checkedInToday, setCheckedInToday, setRewardStatus, pushToast, setStoreOpen } = useStore()
+  const { user, setUser, checkedInToday, setCheckedInToday, setRewardStatus, pushToast, setStoreOpen, workoutRefreshKey } = useStore()
+  const now = useNow()
   const [loading, setLoading] = useState(false)
   const [lastResult, setLastResult] = useState<CheckInResult | null>(null)
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutRecord[]>([])
   const [checkInHistory, setCheckInHistory] = useState<CheckIn[]>([])
-
-  const [showRecordModal, setShowRecordModal] = useState(false)
-  const [workoutType, setWorkoutType] = useState<string>(WORKOUT_TYPES[0])
-  const [calories, setCalories] = useState('')
-  const [recording, setRecording] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [showPointsHint, setShowPointsHint] = useState(false)
+  useLockBodyScroll(showPointsHint)
 
   useEffect(() => {
     Promise.allSettled([
@@ -32,9 +41,12 @@ export default function Dashboard() {
     ]).then(() => setInitialLoading(false))
   }, [])
 
-  function refreshWorkoutHistory() {
+  // A workout recorded from the shared floating Record button (which can be
+  // opened from any page) doesn't touch this page's local state directly.
+  useEffect(() => {
+    if (workoutRefreshKey === 0) return
     getWorkoutHistory().then(setWorkoutHistory).catch(console.error)
-  }
+  }, [workoutRefreshKey])
 
   async function handleGoalSave(newGoal: number) {
     try {
@@ -47,39 +59,11 @@ export default function Dashboard() {
     }
   }
 
-  function openRecordModal() {
-    setWorkoutType(WORKOUT_TYPES[0])
-    setCalories('')
-    setShowRecordModal(true)
-  }
-
-  async function handleRecordSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const caloriesNum = Number(calories)
-    if (!calories || caloriesNum <= 0) {
-      pushToast('Enter a valid calorie amount.')
+  async function handleCheckIn() {
+    if (checkedInToday) {
+      pushToast('Already checked in today. Come back tomorrow!')
       return
     }
-    setRecording(true)
-    try {
-      const result = await recordWorkout(workoutType, caloriesNum)
-      getTodayRewards().then(setRewardStatus).catch(console.error)
-      refreshWorkoutHistory()
-      pushToast(
-        result.pointsEarned > 0
-          ? `Workout recorded! Claim your +${result.pointsEarned} pts in Daily Tasks.`
-          : "Workout saved! (You've already recorded a workout today.)",
-        'success'
-      )
-      setShowRecordModal(false)
-    } catch (err: unknown) {
-      pushToast(err instanceof Error ? err.message : 'Failed to save workout')
-    } finally {
-      setRecording(false)
-    }
-  }
-
-  async function handleCheckIn() {
     setLoading(true)
     try {
       const result = await checkInToday()
@@ -95,68 +79,102 @@ export default function Dashboard() {
     }
   }
 
+  // The backend only updates streak at check-in time, so it still holds
+  // yesterday's value until today's check-in happens — show 0 until then
+  // rather than a stale streak that looks "already earned" for today.
+  const displayStreak = checkedInToday ? (user?.streak ?? 0) : 0
+
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+    <div className="flex flex-col gap-6">
+      {/* items-start (not center) — keeps the "Dashboard" title's top edge
+          flush with the row, matching the plain <h1> on History/Record
+          History, instead of it centering against the taller stat cards. */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Dashboard</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            {' · '}
+            {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}
+          </p>
+        </div>
         {user && (
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Points" value={user.points} onInfoClick={() => setShowPointsHint(true)} />
-            <StatCard label="Current streak" value={`${user.streak} day${user.streak !== 1 ? 's' : ''}`} />
+            <StatCard label="Current streak" value={`${displayStreak} day${displayStreak > 1 ? 's' : ''}`} />
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Charts — left side on desktop, below the main content on mobile */}
-        <div className="flex flex-col gap-6 order-2 lg:order-1">
+      {/*
+        A true 2x2 grid (not two independent columns) so row 2 — the weekly
+        goal donut and the check-in frequency chart — share one row track
+        and stretch to the same height, keeping their bottoms aligned. Order
+        values control both the mobile stacking sequence (check-in card and
+        heatmap first) and the desktop 2-column placement.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="order-3 lg:order-1">
           <CalorieBarChart records={workoutHistory} />
+        </div>
+
+        <div className="order-1 lg:order-2">
+          {initialLoading ? (
+            <div className="w-full h-full bg-[var(--bg-surface)] rounded-2xl shadow p-8 flex flex-col items-center justify-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-[var(--bg-inset)] animate-pulse" />
+              <div className="h-6 w-56 rounded bg-[var(--bg-inset)] animate-pulse" />
+              <div className="h-4 w-72 rounded bg-[var(--bg-inset)] animate-pulse" />
+            </div>
+          ) : (
+            // Big check-in button — same icon/title/subtitle/button structure
+            // in both states so the card never resizes; the button stays
+            // visible after checking in, just disabled and greyed out
+            // instead of disappearing.
+            <div className="w-full h-full bg-[var(--bg-surface)] rounded-2xl shadow p-8 flex flex-col items-center justify-center gap-4">
+              <div className="w-[60px] h-[60px] flex items-center justify-center">
+                {checkedInToday ? (
+                  <div
+                    className="w-[60px] h-[60px] rounded-full flex items-center justify-center text-white"
+                    style={{ backgroundColor: 'var(--primary)' }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </div>
+                ) : (
+                  <span className="text-6xl leading-none">🏃</span>
+                )}
+              </div>
+              <p className="text-xl font-semibold text-[var(--text-secondary)]">
+                {checkedInToday ? 'You checked in today!' : 'Did you exercise today?'}
+              </p>
+              <p className="text-[var(--text-muted)] text-sm text-center">
+                {checkedInToday
+                  ? lastResult
+                    ? <>You've surpassed <Link to="/rank" className="font-bold hover:underline" style={{ color: 'var(--primary)' }}>{lastResult.percentSurpassed}%</Link> of users today. Come back tomorrow!</>
+                    : 'Come back tomorrow to keep your streak going.'
+                  : 'Hit the button to log your workout and earn points.'}
+              </p>
+              <button
+                onClick={handleCheckIn}
+                disabled={loading}
+                className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 cursor-pointer"
+                style={{ backgroundColor: checkedInToday ? 'var(--border-strong)' : 'var(--primary)' }}
+                onMouseEnter={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary-hover)' }}
+                onMouseLeave={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary)' }}
+              >
+                {checkedInToday ? '✓ Checked In' : loading ? 'Checking in…' : '✓ Check In'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="order-4 lg:order-3">
           {user && <WeeklyGoalDonut records={workoutHistory} goal={user.weeklyCalorieGoal} onSave={handleGoalSave} />}
         </div>
 
-        {/* Existing dashboard content — right side on desktop */}
-        <div className="flex flex-col items-center gap-8 order-1 lg:order-2">
-          {initialLoading ? (
-            <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse" />
-              <div className="h-6 w-56 rounded bg-gray-100 animate-pulse" />
-              <div className="h-4 w-72 rounded bg-gray-100 animate-pulse" />
-            </div>
-          ) : (
-            <>
-              {/* Big check-in button — same icon/title/subtitle/button structure
-                  in both states so the card never resizes; the button stays
-                  visible after checking in, just disabled and greyed out
-                  instead of disappearing. */}
-              <div className="w-full bg-white rounded-2xl shadow p-8 flex flex-col items-center gap-4">
-                <div className="text-6xl">{checkedInToday ? '✅' : '🏃'}</div>
-                <p className="text-xl font-semibold text-gray-700">
-                  {checkedInToday ? 'You checked in today!' : 'Did you exercise today?'}
-                </p>
-                <p className="text-gray-400 text-sm text-center">
-                  {checkedInToday
-                    ? lastResult
-                      ? <>You've surpassed <span className="font-bold" style={{ color: 'var(--primary)' }}>{lastResult.percentSurpassed}%</span> of users today. Come back tomorrow!</>
-                      : 'Come back tomorrow to keep your streak going.'
-                    : 'Hit the button to log your workout and earn points.'}
-                </p>
-                <button
-                  onClick={handleCheckIn}
-                  disabled={loading || checkedInToday}
-                  className="mt-2 text-white font-bold text-lg px-10 py-4 rounded-2xl shadow-lg transition-transform active:scale-95 disabled:opacity-60 disabled:active:scale-100 cursor-pointer disabled:cursor-not-allowed"
-                  style={{ backgroundColor: checkedInToday ? '#9ca3af' : 'var(--primary)' }}
-                  onMouseEnter={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary-hover)' }}
-                  onMouseLeave={(e) => { if (!checkedInToday) e.currentTarget.style.backgroundColor = 'var(--primary)' }}
-                >
-                  {checkedInToday ? '✓ Checked In' : loading ? 'Checking in…' : '✓ Check In'}
-                </button>
-              </div>
-            </>
-          )}
-
-          <div className="w-full">
-            <CheckInHeatmap checkIns={checkInHistory} records={workoutHistory} />
-          </div>
+        <div className="order-2 lg:order-4">
+          <CheckInHeatmap checkIns={checkInHistory} records={workoutHistory} />
         </div>
       </div>
 
@@ -167,11 +185,11 @@ export default function Dashboard() {
           onClick={() => setShowPointsHint(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+            className="bg-[var(--bg-surface)] rounded-2xl shadow-xl p-6 w-full max-w-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-800 mb-4">How points work</h2>
-            <ul className="text-sm text-gray-500 space-y-2 list-disc list-inside">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">How points work</h2>
+            <ul className="text-sm text-[var(--text-muted)] space-y-2 list-disc list-inside">
               <li>10 base points per check-in</li>
               <li>+streak × 2 bonus (e.g. 5-day streak = +10 bonus)</li>
               <li>Recording a workout also earns +10 points — once per day only</li>
@@ -187,75 +205,6 @@ export default function Dashboard() {
                 to unlock app skins
               </li>
             </ul>
-          </div>
-        </div>
-      )}
-
-      {/* Floating record button */}
-      <button
-        onClick={openRecordModal}
-        className="fixed bottom-6 right-6 text-white font-bold px-5 py-3 rounded-full shadow-lg transition-transform active:scale-95 cursor-pointer z-30"
-        style={{ backgroundColor: 'var(--primary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
-      >
-        + Record
-      </button>
-
-      {/* Record workout modal */}
-      {showRecordModal && (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
-          onClick={() => setShowRecordModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Record workout</h2>
-            <form onSubmit={handleRecordSubmit} className="flex flex-col gap-4">
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
-                Workout type
-                <select
-                  value={workoutType}
-                  onChange={(e) => setWorkoutType(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  {WORKOUT_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
-                Calories burned
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="e.g. 300"
-                  value={calories}
-                  onChange={(e) => setCalories(e.target.value)}
-                  required
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </label>
-              <div className="flex gap-3 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowRecordModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 font-semibold hover:bg-gray-50 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={recording}
-                  className="flex-1 text-white rounded-lg py-2 font-semibold transition disabled:opacity-60 cursor-pointer"
-                  style={{ backgroundColor: 'var(--primary)' }}
-                >
-                  {recording ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

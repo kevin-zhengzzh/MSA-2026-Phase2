@@ -64,6 +64,8 @@ export interface Skin {
   theme: string
   isOwned: boolean
   isEquipped: boolean
+  isReward: boolean
+  isNew: boolean
 }
 
 export interface RewardStatus {
@@ -87,6 +89,33 @@ export interface LeaderboardEntry {
   avatarUrl: string | null
 }
 
+export interface StreakLeaderboardEntry {
+  rank: number
+  id: number
+  username: string
+  streak: number
+  isMe: boolean
+  avatarUrl: string | null
+}
+
+export interface CaloriesLeaderboardEntry {
+  rank: number
+  id: number
+  username: string
+  calories: number
+  isMe: boolean
+  avatarUrl: string | null
+}
+
+export interface CheckinTodayLeaderboardEntry {
+  rank: number
+  id: number
+  username: string
+  checkedInAt: string
+  isMe: boolean
+  avatarUrl: string | null
+}
+
 export interface AuthResponse {
   token: string
   userId: number
@@ -100,4 +129,5 @@ export const THEME_COLORS: Record<string, { primary: string; light: string }> = 
   sunset:   { primary: '#ea580c', light: '#ffedd5' },
   midnight: { primary: '#7c3aed', light: '#ede9fe' },
   cherry:   { primary: '#db2777', light: '#fce7f3' },
+  dark:     { primary: '#6366f1', light: '#312e81' },
 }

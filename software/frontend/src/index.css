@@ -1,12 +1,25 @@
 @import "tailwindcss";
 
-/* Default theme (Forest green) */
+/* Default theme (Forest green). Also defines the neutral surface/text/border
+   tokens every page is built from — every other theme inherits these
+   unchanged except [data-theme="dark"], which overrides them for a real
+   dark background instead of just swapping the accent color. */
 :root {
   --primary: #16a34a;
   --primary-hover: #15803d;
   --primary-light: #dcfce7;
   --primary-text: #14532d;
   --primary-ring: #86efac;
+
+  --bg-page: #f9fafb;
+  --bg-surface: #ffffff;
+  --bg-inset: #f3f4f6;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --border-subtle: #f3f4f6;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
 }
 
 [data-theme="ocean"] {
@@ -41,13 +54,44 @@
   --primary-ring: #f9a8d4;
 }
 
+/* Dark — earned at a 7-day streak. Real dark backgrounds, not just a
+   different accent, so it's actually comfortable to use at night. */
+[data-theme="dark"] {
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --primary-light: #312e81;
+  --primary-text: #c7d2fe;
+  --primary-ring: #818cf8;
+
+  --bg-page: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-inset: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-subtle: #334155;
+  --border: #334155;
+  --border-strong: #475569;
+}
+
 body {
   margin: 0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  background-color: var(--bg-page);
 }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px) scale(0.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Heatmap cells pop in on load and replay whenever the grid is remounted
+   (e.g. switching the Month/Year time scale) — see CheckInHeatmap. */
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+.cell-in {
+  animation: cell-in 0.35s ease-out backwards;
 }

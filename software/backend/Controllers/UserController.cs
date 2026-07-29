@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +14,13 @@ namespace backend.Controllers;
 public class UserController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IValidator<UpdateUsernameRequest> _usernameValidator;
 
-    public UserController(AppDbContext db) => _db = db;
+    public UserController(AppDbContext db, IValidator<UpdateUsernameRequest> usernameValidator)
+    {
+        _db = db;
+        _usernameValidator = usernameValidator;
+    }
 
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -59,6 +65,29 @@ public class UserController : ControllerBase
             raw.WeeklyCalorieGoal,
             AvatarUrl = raw.HasAvatar ? $"/user/avatar/{raw.Id}?v={raw.AvatarUpdatedAt!.Value.Ticks}" : null
         });
+    }
+
+    [HttpPut("username")]
+    public async Task<IActionResult> UpdateUsername(UpdateUsernameRequest req)
+    {
+        var validation = await _usernameValidator.ValidateAsync(req);
+        if (!validation.IsValid)
+            return BadRequest(validation.Errors.Select(e => e.ErrorMessage));
+
+        var user = await _db.Users.FindAsync(UserId);
+        if (user is null) return NotFound();
+
+        if (req.Username == user.Username)
+            return Ok(new { username = user.Username });
+
+        var taken = await _db.Users.AnyAsync(u => u.Id != UserId && u.Username == req.Username);
+        if (taken)
+            return Conflict(new { message = "That username is already taken." });
+
+        user.Username = req.Username;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { username = user.Username });
     }
 
     [HttpPut("weekly-goal")]

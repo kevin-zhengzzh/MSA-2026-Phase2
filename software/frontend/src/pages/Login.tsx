@@ -23,11 +23,11 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-page)]">
       <AuthHeader />
       <div className="flex items-center justify-center px-4 py-16">
-        <div className="bg-white rounded-xl shadow p-8 w-full max-w-sm">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">Sign in</h1>
+        <div className="bg-[var(--bg-surface)] rounded-xl shadow p-8 w-full max-w-sm">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Sign in</h1>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               type="email"
@@ -35,7 +35,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
             />
             <input
               type="password"
@@ -43,17 +43,20 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
             />
             <button
               type="submit"
-              className="bg-green-600 text-white rounded-lg py-2 font-semibold hover:bg-green-700 transition"
+              className="text-white rounded-lg py-2 font-semibold transition cursor-pointer"
+              style={{ backgroundColor: 'var(--primary)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
             >
               Sign in
             </button>
           </form>
-          <p className="text-sm text-gray-500 mt-4 text-center">
-            No account? <Link to="/register" className="text-green-600 hover:underline">Register</Link>
+          <p className="text-sm text-[var(--text-muted)] mt-4 text-center">
+            No account? <Link to="/register" className="hover:underline" style={{ color: 'var(--primary)' }}>Register</Link>
           </p>
         </div>
       </div>

@@ -19,10 +19,10 @@ export default function PointsHistory() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold text-gray-800">Points History</h1>
+      <h1 className="text-3xl font-bold text-[var(--text-primary)]">Points History</h1>
 
       {history.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-8 text-center text-[var(--text-muted)]">
           <p className="text-4xl mb-3">✨</p>
           <p>No point activity yet. Check in or record a workout to start earning!</p>
         </div>
@@ -30,11 +30,11 @@ export default function PointsHistory() {
         Object.entries(grouped)
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([month, entries]) => (
-            <div key={month} className="bg-white rounded-2xl shadow p-5">
-              <h2 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3">
+            <div key={month} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5">
+              <h2 className="font-semibold text-[var(--text-secondary)] text-sm uppercase tracking-wide mb-3">
                 {new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-[var(--border-subtle)]">
                 {entries.map((t) => (
                   <li key={t.id} className="py-3 flex items-center gap-3">
                     <span
@@ -44,8 +44,8 @@ export default function PointsHistory() {
                       {t.amount >= 0 ? '+' : '−'}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{t.reason}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{t.reason}</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
                         {new Date(t.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
                     </div>

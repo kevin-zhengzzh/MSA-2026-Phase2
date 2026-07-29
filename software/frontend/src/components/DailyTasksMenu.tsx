@@ -5,10 +5,10 @@ function TaskRow({ label, task }: { label: string; task: { pointsEarned: number;
   let color: string
   if (!task) {
     status = 'Not done yet'
-    color = '#9ca3af'
+    color = 'var(--text-muted)'
   } else if (task.claimed) {
     status = 'Claimed'
-    color = '#9ca3af'
+    color = 'var(--text-muted)'
   } else {
     status = `+${task.pointsEarned} pts ready`
     color = 'var(--primary-text)'
@@ -47,13 +47,13 @@ export default function DailyTasksMenu({
           <span className="text-sm font-medium">Daily Tasks</span>
         </div>
         {claimable && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)]" />
         )}
       </div>
 
       <div className="absolute right-0 top-full pt-2 hidden group-hover:block z-20">
-        <div className="bg-white rounded-lg shadow-lg p-4 w-64 text-sm text-gray-700">
-          <h3 className="font-semibold text-gray-800 mb-3">Daily Tasks</h3>
+        <div className="bg-[var(--bg-surface)] rounded-lg shadow-lg p-4 w-64 text-sm text-[var(--text-secondary)]">
+          <h3 className="font-semibold text-[var(--text-primary)] mb-3">Daily Tasks</h3>
           <ul className="space-y-2 mb-4">
             <TaskRow label="Check-in" task={rewardStatus?.checkIn ?? null} />
             <TaskRow label="Workout" task={rewardStatus?.workout ?? null} />

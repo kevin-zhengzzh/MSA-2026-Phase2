@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useStore } from './store'
-import { claimRewards, getMe, getSkins, getTodayRewards, uploadAvatar } from './api'
+import { claimRewards, getMe, getSkins, getTodayRewards, getTodayStatus, updateUsername, uploadAvatar } from './api'
 import Sidebar from './components/Sidebar'
+import RecordButton from './components/RecordButton'
 import UserMenu from './components/UserMenu'
 import DailyTasksMenu from './components/DailyTasksMenu'
 import StoreModal from './components/StoreModal'
@@ -14,6 +15,7 @@ import Register from './pages/Register'
 import History from './pages/History'
 import RecordHistory from './pages/RecordHistory'
 import Rank from './pages/Rank'
+import Landing from './pages/Landing'
 
 // Home / Check-in History / Record History share the sidebar and are
 // treated as one "Dashboard" section in the header nav's active state
@@ -47,14 +49,31 @@ const NAV_TABS = [
 ]
 
 function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpenPoints: () => void }) {
-  const { username, user, cachedAvatarUrl, skins, rewardStatus, setUser, setRewardStatus, pushToast, clearAuth } = useStore()
+  const { username, user, cachedAvatarUrl, skins, rewardStatus, setUser, setUsername, setRewardStatus, pushToast, clearAuth, bumpLeaderboardRefresh } = useStore()
   const location = useLocation()
   const activeTabIndex = NAV_TABS.findIndex((t) => t.isActive(location.pathname))
-  const hasAffordableSkin = !!user && skins.some((s) => !s.isOwned && s.pointCost <= user.points)
+  const hasAffordableSkin = !!user && skins.some((s) => !s.isReward && !s.isOwned && s.pointCost <= user.points)
+  const hasNewSkin = skins.some((s) => s.isNew)
+  const hasStoreNotification = hasAffordableSkin || hasNewSkin
 
   async function handleAvatarUpload(file: File) {
     await uploadAvatar(file)
     setUser(await getMe())
+  }
+
+  async function handleUsernameChange(newUsername: string) {
+    try {
+      const res = await updateUsername(newUsername)
+      setUsername(res.username)
+      pushToast('Username updated!', 'success')
+      // Leaderboard entries come from their own DB query, not from
+      // user.username — bump so Rank refetches and shows the new name.
+      bumpLeaderboardRefresh()
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Failed to update username')
+      pushToast(error.message)
+      throw error
+    }
   }
 
   async function handleClaim() {
@@ -64,19 +83,20 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
       const [updatedUser, updatedRewards] = await Promise.all([getMe(), getTodayRewards()])
       setUser(updatedUser)
       setRewardStatus(updatedRewards)
+      bumpLeaderboardRefresh()
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Nothing to claim right now.')
     }
   }
 
   return (
-    <header className="fixed top-0 inset-x-0 z-40 h-14 bg-white border-b border-gray-200 shadow" style={{ color: 'var(--primary)' }}>
+    <header className="fixed top-0 inset-x-0 z-40 h-14 bg-[var(--bg-surface)] border-b border-[var(--border)] shadow" style={{ color: 'var(--primary)' }}>
       {/* Same max-width + padding as the page body below, so the logo and
           right-side controls line up with the sidebar/content edges instead
           of the header's own independent inset. */}
-      <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-        <span className="font-bold text-lg tracking-tight">HealthTrack</span>
-        <nav className="relative flex text-sm font-medium bg-gray-100 rounded-full p-1">
+      <div className="max-w-7xl mx-auto pr-4 h-full grid grid-cols-3 items-center">
+        <Link to="/" className="font-bold text-lg tracking-tight justify-self-start -ml-6">HealthTrack</Link>
+        <nav className="relative flex text-sm font-medium bg-[var(--bg-inset)] rounded-full p-1 justify-self-center">
           <div
             className="absolute top-1 bottom-1 left-1 w-20 rounded-full transition-transform duration-200 ease-out"
             style={{
@@ -101,16 +121,17 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
             )
           })}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 justify-self-end">
           <DailyTasksMenu rewardStatus={rewardStatus} onClaim={handleClaim} />
           <UserMenu
             username={username}
             points={user?.points ?? null}
             avatarUrl={user?.avatarUrl ?? cachedAvatarUrl}
-            hasAffordableSkin={hasAffordableSkin}
+            hasStoreNotification={hasStoreNotification}
             onOpenStore={onOpenStore}
             onOpenPoints={onOpenPoints}
             onAvatarUpload={handleAvatarUpload}
+            onUpdateUsername={handleUsernameChange}
             onSignOut={clearAuth}
           />
         </div>
@@ -120,7 +141,7 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
 }
 
 function PrivateLayout() {
-  const { token, user, setUser, setTheme, storeOpen, setStoreOpen, setSkins, setRewardStatus } = useStore()
+  const { token, user, setUser, setTheme, storeOpen, setStoreOpen, setSkins, setRewardStatus, setCheckedInToday } = useStore()
   const location = useLocation()
   const [pointsOpen, setPointsOpen] = useState(false)
 
@@ -130,6 +151,10 @@ function PrivateLayout() {
       getMe().then(setUser).catch(console.error)
       getSkins().then(setSkins).catch(console.error)
       getTodayRewards().then(setRewardStatus).catch(console.error)
+      // Fetched globally (not just by Dashboard) so pages like Rank that
+      // depend on checkedInToday (e.g. StreakTracker) are accurate even
+      // when Dashboard never mounted this session.
+      getTodayStatus().then((r) => setCheckedInToday(r.checkedIn)).catch(console.error)
     }
   }, [token])
 
@@ -137,24 +162,41 @@ function PrivateLayout() {
     if (user?.equippedTheme) setTheme(user.equippedTheme)
   }, [user?.equippedTheme])
 
-  if (!token) return <Navigate to="/login" replace />
+  // Root without a token is the marketing landing page, not an auth redirect —
+  // every other private path still bounces straight to /login as before.
+  if (!token) return location.pathname === '/' ? <Landing /> : <Navigate to="/login" replace />
 
   const showSidebar = DASHBOARD_SECTION_PATHS.includes(location.pathname)
+  // Rank has its own internal sidebar (ranking categories, not routes) — it
+  // needs the wider Dashboard-style width, and to hug the left edge the
+  // same way, instead of the narrow centered list pages
+  const isRank = location.pathname === '/rank'
+  const isWide = location.pathname === '/'
+  const hugLeft = showSidebar || isRank
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--bg-page)]">
       <NavBar onOpenStore={() => setStoreOpen(true)} onOpenPoints={() => setPointsOpen(true)} />
       <div className="pt-14">
-        <div className="max-w-7xl mx-auto px-4 py-8 flex gap-6 items-start">
+        <div className="max-w-7xl mx-auto pr-4 py-8 flex gap-10 items-start">
           {showSidebar && <Sidebar />}
+          {showSidebar && <RecordButton />}
           {/* Content hugs the sidebar (no auto-margin) when one is showing —
-              mx-auto only re-centers it on sidebar-less pages like Rank. */}
-          <main className={`flex-1 min-w-0 ${showSidebar ? '' : 'mx-auto'} ${location.pathname === '/' ? 'max-w-5xl' : 'max-w-2xl'}`}>
+              mx-auto only re-centers it on sidebar-less pages like History/Record History. */}
+          {/* Rank has its own internal side columns (RankSidebar +
+              StreakTracker, 224px + 192px + two 40px gaps = 496px) eating
+              into whatever width it's given — max-w-2xl (672px) + 496px so
+              its podium/list column ends up exactly as wide as History's card. */}
+          <main className={`flex-1 min-w-0 ${hugLeft ? '' : 'mx-auto'} ${isWide ? 'max-w-5xl' : isRank ? 'max-w-[73rem]' : 'max-w-2xl'}`}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/history" element={<History />} />
               <Route path="/record-history" element={<RecordHistory />} />
-              <Route path="/rank" element={<Rank />} />
+              {/* Keyed by location.key so clicking the header's Rank tab while
+                  already on /rank remounts the page — resetting its local
+                  tab state back to the Daily Check-in default — instead of
+                  leaving whichever tab you'd switched to still showing. */}
+              <Route path="/rank" element={<Rank key={location.key} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

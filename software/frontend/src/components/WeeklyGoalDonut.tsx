@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPES, type WorkoutRecord } from '../types'
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll'
 
 function parseLocalDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`)
@@ -35,6 +36,7 @@ export default function WeeklyGoalDonut({
   const [draftGoal, setDraftGoal] = useState(String(goal))
   const [saving, setSaving] = useState(false)
   const [hoverType, setHoverType] = useState<string | null>(null)
+  useLockBodyScroll(editing)
 
   const weekRecords = useMemo(() => {
     const weekStart = startOfWeek(new Date())
@@ -45,7 +47,15 @@ export default function WeeklyGoalDonut({
 
   const percent = goal > 0 ? Math.round((weekTotal / goal) * 100) : 0
   const ringPercent = Math.min(100, percent)
-  const filledLength = (ringPercent / 100) * CIRCUMFERENCE
+
+  // Ring sweeps in from empty on first load; CSS transition on the segment
+  // circles then also animates any later change to the underlying data.
+  const [grown, setGrown] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setGrown(true), 30)
+    return () => clearTimeout(t)
+  }, [])
+  const filledLength = grown ? (ringPercent / 100) * CIRCUMFERENCE : 0
 
   // Fixed categorical order (never re-sorted by size) — a type keeps the
   // same color and relative position regardless of which types have data.
@@ -96,14 +106,14 @@ export default function WeeklyGoalDonut({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5">
+    <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 h-full">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-700">Weekly goal</h2>
+        <h2 className="font-semibold text-[var(--text-secondary)]">Weekly goal</h2>
         <button
           onClick={openEdit}
           aria-label="Edit weekly calorie goal"
           title="Edit weekly calorie goal"
-          className="text-gray-400 hover:text-gray-600 cursor-pointer p-1"
+          className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer p-1"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -114,7 +124,7 @@ export default function WeeklyGoalDonut({
       <div className="flex flex-col items-center">
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
           <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} role="img" aria-label={`${percent}% of weekly calorie goal completed`}>
-            <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="#e5e7eb" strokeWidth={STROKE} />
+            <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="var(--border)" strokeWidth={STROKE} />
             <g transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}>
               {typeSegments.map((s) => (
                 <circle
@@ -134,14 +144,14 @@ export default function WeeklyGoalDonut({
                   onFocus={() => setHoverType(s.type)}
                   onBlur={() => setHoverType((cur) => (cur === s.type ? null : cur))}
                   tabIndex={0}
-                  className="cursor-pointer outline-none"
+                  className="cursor-pointer outline-none transition-[stroke-dasharray,stroke-dashoffset,opacity] duration-700 ease-out"
                 />
               ))}
             </g>
-            <text x={SIZE / 2} y={SIZE / 2 - 6} textAnchor="middle" fontSize={30} fontWeight={700} className="fill-gray-800">
+            <text x={SIZE / 2} y={SIZE / 2 - 6} textAnchor="middle" fontSize={30} fontWeight={700} className="fill-[var(--text-primary)]">
               {percent}%
             </text>
-            <text x={SIZE / 2} y={SIZE / 2 + 18} textAnchor="middle" fontSize={11} className="fill-gray-400">
+            <text x={SIZE / 2} y={SIZE / 2 + 18} textAnchor="middle" fontSize={11} className="fill-[var(--text-muted)]">
               of weekly goal
             </text>
           </svg>
@@ -161,12 +171,12 @@ export default function WeeklyGoalDonut({
           )}
         </div>
 
-        <p className="text-sm text-gray-500 mt-2">
-          <span className="font-semibold text-gray-700">{weekTotal.toLocaleString()}</span> / {goal.toLocaleString()} kcal this week
+        <p className="text-sm text-[var(--text-muted)] mt-2">
+          <span className="font-semibold text-[var(--text-secondary)]">{weekTotal.toLocaleString()}</span> / {goal.toLocaleString()} kcal this week
         </p>
 
         {typeSegments.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 mt-3 text-xs text-[var(--text-muted)]">
             {typeSegments.map((s) => (
               <span
                 key={s.type}
@@ -175,12 +185,12 @@ export default function WeeklyGoalDonut({
                 onPointerLeave={() => setHoverType((cur) => (cur === s.type ? null : cur))}
               >
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                {s.type} <span className="text-gray-400">({s.value.toLocaleString()})</span>
+                {s.type} <span className="text-[var(--text-muted)]">({s.value.toLocaleString()})</span>
               </span>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 mt-3">No workouts recorded this week yet.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-3">No workouts recorded this week yet.</p>
         )}
       </div>
 
@@ -190,12 +200,12 @@ export default function WeeklyGoalDonut({
           onClick={() => setEditing(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+            className="bg-[var(--bg-surface)] rounded-2xl shadow-xl p-6 w-full max-w-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Set weekly calorie goal</h2>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Set weekly calorie goal</h2>
             <form onSubmit={handleSave} className="flex flex-col gap-4">
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
+              <label className="flex flex-col gap-1 text-sm text-[var(--text-secondary)]">
                 Goal (kcal per week)
                 <input
                   type="number"
@@ -204,14 +214,14 @@ export default function WeeklyGoalDonut({
                   value={draftGoal}
                   onChange={(e) => setDraftGoal(e.target.value)}
                   required
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
               <div className="flex gap-3 mt-2">
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 font-semibold hover:bg-gray-50 transition cursor-pointer"
+                  className="flex-1 border border-[var(--border-strong)] text-[var(--text-secondary)] rounded-lg py-2 font-semibold hover:bg-[var(--bg-inset)] transition cursor-pointer"
                 >
                   Cancel
                 </button>

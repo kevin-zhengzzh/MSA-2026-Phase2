@@ -3,7 +3,7 @@ import { getCheckInHistory } from '../api'
 import Pagination from '../components/Pagination'
 import type { CheckIn } from '../types'
 
-const PAGE_SIZE = 7
+const PAGE_SIZE_OPTIONS = [5, 10, 20]
 
 // Bare "YYYY-MM-DD" strings parse as UTC midnight in JS; constructing from
 // the parts instead keeps the calendar date stable regardless of local timezone.
@@ -16,14 +16,20 @@ export default function History() {
   const [history, setHistory] = useState<CheckIn[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     getCheckInHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(history.length / PAGE_SIZE))
+  function changePageSize(size: number) {
+    setPageSize(size)
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(history.length / pageSize))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = history.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const pageItems = history.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   // Group the current page's check-ins by month for display
   const grouped = pageItems.reduce<Record<string, CheckIn[]>>((acc, c) => {
@@ -35,20 +41,20 @@ export default function History() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold text-gray-800">Check-in History</h1>
+      <h1 className="text-3xl font-bold text-[var(--text-primary)]">Check-in History</h1>
 
       {initialLoading ? (
-        <div className="bg-white rounded-2xl shadow p-5 flex flex-col gap-3">
-          <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 flex flex-col gap-3">
+          <div className="h-4 w-32 rounded bg-[var(--bg-inset)] animate-pulse" />
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex items-center gap-3 py-1">
-              <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
-              <div className="h-4 w-40 rounded bg-gray-100 animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] animate-pulse flex-shrink-0" />
+              <div className="h-4 w-40 rounded bg-[var(--bg-inset)] animate-pulse" />
             </div>
           ))}
         </div>
       ) : history.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-8 text-center text-[var(--text-muted)]">
           <p className="text-4xl mb-3">📋</p>
           <p>No check-ins yet. Head to the dashboard to start!</p>
         </div>
@@ -56,11 +62,11 @@ export default function History() {
         Object.entries(grouped)
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([month, entries]) => (
-            <div key={month} className="bg-white rounded-2xl shadow p-5">
-              <h2 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3">
+            <div key={month} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5">
+              <h2 className="font-semibold text-[var(--text-secondary)] text-sm uppercase tracking-wide mb-3">
                 {parseLocalDate(`${month}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-[var(--border-subtle)]">
                 {entries.map((c) => (
                   <li key={c.id} className="py-3 flex items-center gap-3">
                     <span
@@ -70,15 +76,15 @@ export default function History() {
                       ✓
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">
                         {parseLocalDate(c.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
-                      {c.note && <p className="text-xs text-gray-400 mt-0.5">{c.note}</p>}
+                      {c.note && <p className="text-xs text-[var(--text-muted)] mt-0.5">{c.note}</p>}
                     </div>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-gray-400 mt-3 text-right">
+              <p className="text-xs text-[var(--text-muted)] mt-3 text-right">
                 {entries.length} check-in{entries.length !== 1 ? 's' : ''} this month
               </p>
             </div>
@@ -86,7 +92,14 @@ export default function History() {
       )}
 
       {!initialLoading && history.length > 0 && (
-        <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setPage}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={changePageSize}
+        />
       )}
     </div>
   )

@@ -27,7 +27,7 @@ public class SkinController : ControllerBase
             .FirstOrDefaultAsync(u => u.Id == UserId);
         if (user is null) return NotFound();
 
-        var ownedIds = user.OwnedSkins.Select(s => s.SkinId).ToHashSet();
+        var ownedIds = user.OwnedSkins.ToDictionary(s => s.SkinId, s => s.Seen);
 
         var skins = await _db.Skins
             .Select(s => new SkinDto(
@@ -36,12 +36,29 @@ public class SkinController : ControllerBase
                 s.Description,
                 s.PointCost,
                 s.Theme,
-                ownedIds.Contains(s.Id),
-                user.EquippedSkinId == s.Id
+                ownedIds.ContainsKey(s.Id),
+                user.EquippedSkinId == s.Id,
+                s.IsReward,
+                ownedIds.ContainsKey(s.Id) && !ownedIds[s.Id]
             ))
             .ToListAsync();
 
         return Ok(skins);
+    }
+
+    // Clears the "new" red-dot notification on every owned skin — called
+    // when the Store is opened
+    [HttpPut("mark-seen")]
+    public async Task<IActionResult> MarkSeen()
+    {
+        var unseen = await _db.UserSkins
+            .Where(us => us.UserId == UserId && !us.Seen)
+            .ToListAsync();
+
+        foreach (var us in unseen) us.Seen = true;
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 
     [HttpPost("{id}/purchase")]
@@ -57,6 +74,9 @@ public class SkinController : ControllerBase
 
         var skin = await _db.Skins.FindAsync(id);
         if (skin is null) return NotFound(new { message = "Skin not found." });
+
+        if (skin.IsReward)
+            return BadRequest(new { message = $"{skin.Name} can only be earned, not purchased." });
 
         if (user.Points < skin.PointCost)
             return BadRequest(new { message = $"Not enough points. Need {skin.PointCost}, have {user.Points}." });

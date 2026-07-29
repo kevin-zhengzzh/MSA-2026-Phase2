@@ -7,5 +7,7 @@ public record SkinDto(
     int PointCost,
     string Theme,
     bool IsOwned,
-    bool IsEquipped
+    bool IsEquipped,
+    bool IsReward,
+    bool IsNew
 );

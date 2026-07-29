@@ -9,4 +9,8 @@ public class Skin
 
     // Maps to a CSS theme name applied as data-theme on the root element
     public string Theme { get; set; } = string.Empty;
+
+    // Earned via an in-app achievement (e.g. a 7-day streak) instead of
+    // bought with points — SkinController.Purchase rejects these
+    public bool IsReward { get; set; } = false;
 }

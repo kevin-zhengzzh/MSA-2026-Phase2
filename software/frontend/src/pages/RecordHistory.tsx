@@ -3,8 +3,9 @@ import { deleteWorkout, getWorkoutHistory, updateWorkout } from '../api'
 import Pagination from '../components/Pagination'
 import { useStore } from '../store'
 import { WORKOUT_TYPES, type WorkoutRecord } from '../types'
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll'
 
-const PAGE_SIZE = 7
+const PAGE_SIZE_OPTIONS = [5, 10, 20]
 
 // Case-insensitive substring match, falling back to an in-order subsequence
 // match (e.g. "cyc" or "ccyl" both still find "Cycling") for typo tolerance
@@ -28,32 +29,47 @@ function parseLocalDate(dateStr: string) {
 
 export default function RecordHistory() {
   const pushToast = useStore((s) => s.pushToast)
+  const workoutRefreshKey = useStore((s) => s.workoutRefreshKey)
   const [history, setHistory] = useState<WorkoutRecord[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editType, setEditType] = useState<string>(WORKOUT_TYPES[0])
   const [editCalories, setEditCalories] = useState('')
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  useLockBodyScroll(editingId !== null || confirmDeleteId !== null)
 
   useEffect(() => {
     getWorkoutHistory().then(setHistory).catch(console.error).finally(() => setInitialLoading(false))
   }, [])
 
+  // A workout recorded from the shared floating Record button (which can be
+  // opened from any page) doesn't touch this page's local state directly.
+  useEffect(() => {
+    if (workoutRefreshKey === 0) return
+    getWorkoutHistory().then(setHistory).catch(console.error)
+  }, [workoutRefreshKey])
+
   const filtered = useMemo(
     () => history.filter((w) => fuzzyMatch(search, w.workoutType)),
     [history, search]
   )
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, totalPages)
-  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const pageItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   useEffect(() => {
     setPage(1)
   }, [search])
+
+  function changePageSize(size: number) {
+    setPageSize(size)
+    setPage(1)
+  }
 
   function startEdit(w: WorkoutRecord) {
     setEditingId(w.id)
@@ -120,7 +136,7 @@ export default function RecordHistory() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold text-gray-800">Record History</h1>
+      <h1 className="text-3xl font-bold text-[var(--text-primary)]">Record History</h1>
 
       {!initialLoading && history.length > 0 && (
         <input
@@ -128,27 +144,27 @@ export default function RecordHistory() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by workout type…"
-          className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+          className="w-full border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)]"
         />
       )}
 
       {initialLoading ? (
-        <div className="bg-white rounded-2xl shadow p-5 flex flex-col gap-3">
-          <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 flex flex-col gap-3">
+          <div className="h-4 w-32 rounded bg-[var(--bg-inset)] animate-pulse" />
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex items-center gap-3 py-1">
-              <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
-              <div className="h-4 w-40 rounded bg-gray-100 animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-inset)] animate-pulse flex-shrink-0" />
+              <div className="h-4 w-40 rounded bg-[var(--bg-inset)] animate-pulse" />
             </div>
           ))}
         </div>
       ) : history.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-8 text-center text-[var(--text-muted)]">
           <p className="text-4xl mb-3">🏋️</p>
           <p>No workout records yet. Log one from the dashboard!</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow p-8 text-center text-gray-400">
+        <div className="bg-[var(--bg-surface)] rounded-2xl shadow p-8 text-center text-[var(--text-muted)]">
           <p className="text-4xl mb-3">🔍</p>
           <p>No records match "{search}".</p>
         </div>
@@ -156,22 +172,22 @@ export default function RecordHistory() {
         Object.entries(grouped)
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([month, entries]) => (
-            <div key={month} className="bg-white rounded-2xl shadow p-5">
-              <h2 className="font-semibold text-gray-600 text-sm uppercase tracking-wide mb-3">
+            <div key={month} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5">
+              <h2 className="font-semibold text-[var(--text-secondary)] text-sm uppercase tracking-wide mb-3">
                 {new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
               <div className="flex flex-col gap-3">
                 {groupByDay(entries).map(([date, dayEntries]) => (
-                  <div key={date} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div key={date} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-inset)] p-3">
                     <div className="flex items-center justify-between mb-1.5 px-1">
-                      <p className="text-xs font-semibold text-gray-500">
+                      <p className="text-xs font-semibold text-[var(--text-muted)]">
                         {parseLocalDate(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-[var(--text-muted)]">
                         {dayEntries.reduce((sum, w) => sum + w.calories, 0)} kcal total
                       </p>
                     </div>
-                    <ul className="divide-y divide-gray-200">
+                    <ul className="divide-y divide-[var(--border-subtle)]">
                       {dayEntries.map((w) => (
                         <li key={w.id} className="py-2.5 flex items-center gap-3">
                           <span
@@ -181,14 +197,14 @@ export default function RecordHistory() {
                             🏋️
                           </span>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-800">{w.workoutType}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{w.calories} kcal</p>
+                            <p className="text-sm font-medium text-[var(--text-primary)]">{w.workoutType}</p>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">{w.calories} kcal</p>
                           </div>
                           <button
                             onClick={() => startEdit(w)}
                             aria-label="Edit"
                             title="Edit"
-                            className="text-gray-400 hover:text-gray-600 cursor-pointer p-1"
+                            className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer p-1"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -215,7 +231,7 @@ export default function RecordHistory() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-3 text-right">
+              <p className="text-xs text-[var(--text-muted)] mt-3 text-right">
                 {entries.length} record{entries.length !== 1 ? 's' : ''} this month
               </p>
             </div>
@@ -223,7 +239,14 @@ export default function RecordHistory() {
       )}
 
       {!initialLoading && filtered.length > 0 && (
-        <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setPage}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={changePageSize}
+        />
       )}
 
       {editingId !== null && (
@@ -232,38 +255,38 @@ export default function RecordHistory() {
           onClick={cancelEdit}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+            className="bg-[var(--bg-surface)] rounded-2xl shadow-xl p-6 w-full max-w-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Edit workout</h2>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Edit workout</h2>
             <div className="flex flex-col gap-4">
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
+              <label className="flex flex-col gap-1 text-sm text-[var(--text-secondary)]">
                 Workout type
                 <select
                   value={editType}
                   onChange={(e) => setEditType(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   {WORKOUT_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-sm text-gray-600">
+              <label className="flex flex-col gap-1 text-sm text-[var(--text-secondary)]">
                 Calories burned
                 <input
                   type="number"
                   min={1}
                   value={editCalories}
                   onChange={(e) => setEditCalories(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
               <div className="flex gap-3 mt-2">
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 font-semibold hover:bg-gray-50 transition cursor-pointer"
+                  className="flex-1 border border-[var(--border-strong)] text-[var(--text-secondary)] rounded-lg py-2 font-semibold hover:bg-[var(--bg-inset)] transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -288,16 +311,16 @@ export default function RecordHistory() {
           onClick={cancelDelete}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm"
+            className="bg-[var(--bg-surface)] rounded-2xl shadow-xl p-6 w-full max-w-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Delete workout?</h2>
-            <p className="text-sm text-gray-500 mb-4">This can't be undone.</p>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Delete workout?</h2>
+            <p className="text-sm text-[var(--text-muted)] mb-4">This can't be undone.</p>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={cancelDelete}
-                className="flex-1 border border-gray-300 text-gray-600 rounded-lg py-2 font-semibold hover:bg-gray-50 transition cursor-pointer"
+                className="flex-1 border border-[var(--border-strong)] text-[var(--text-secondary)] rounded-lg py-2 font-semibold hover:bg-[var(--bg-inset)] transition cursor-pointer"
               >
                 Cancel
               </button>
