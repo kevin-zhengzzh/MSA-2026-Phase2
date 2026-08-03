@@ -21,7 +21,7 @@ public class CheckInController : ControllerBase
 
     // Trusts the client's local date, clamped to ±1 day of server UTC —
     // real-world timezone offsets never diverge from UTC by more than a day either way.
-    private static DateOnly ResolveToday(string? localDate)
+    internal static DateOnly ResolveToday(string? localDate)
     {
         var utcToday = DateOnly.FromDateTime(DateTime.UtcNow);
         if (localDate is not null && DateOnly.TryParse(localDate, out var parsed))
