@@ -7,18 +7,22 @@ import AuthHeader from '../components/AuthHeader'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const setAuth = useStore((s) => s.setAuth)
   const pushToast = useStore((s) => s.pushToast)
   const navigate = useNavigate()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting) return
+    setSubmitting(true)
     try {
       const res = await login(email, password)
       setAuth(res.token, res.userId, res.username)
       navigate('/')
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Login failed')
+      setSubmitting(false)
     }
   }
 
@@ -47,12 +51,13 @@ export default function Login() {
             />
             <button
               type="submit"
-              className="text-white rounded-lg py-2 font-semibold transition cursor-pointer"
+              disabled={submitting}
+              className="text-white rounded-lg py-2 font-semibold transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ backgroundColor: 'var(--primary)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
+              onMouseEnter={(e) => !submitting && (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
             >
-              Sign in
+              {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
           <p className="text-sm text-[var(--text-muted)] mt-4 text-center">
