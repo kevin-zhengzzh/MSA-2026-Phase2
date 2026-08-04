@@ -127,7 +127,7 @@ function SkinCard({
 
   return (
     <div className={`relative bg-[var(--bg-surface)] rounded-2xl shadow p-5 flex items-center gap-5 ${isEquipped ? 'ring-2' : ''}`}
-      style={isEquipped ? { ringColor: colors.primary } : {}}>
+      style={isEquipped ? ({ '--tw-ring-color': colors.primary } as React.CSSProperties) : undefined}>
       {(isAffordable || isNew) && (
         <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)]" />
       )}

@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: healthtracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=healthtracker;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      Jwt__Key: ${JWT_KEY:-replace-this-with-a-secret-key-at-least-32-chars}
+      Jwt__Issuer: healthtracker-api
+      Jwt__Audience: healthtracker-app
+      Jwt__ExpiryHours: "24"
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5000
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  db-data:

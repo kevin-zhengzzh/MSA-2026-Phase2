@@ -1,6 +1,6 @@
 import type { AuthResponse, CaloriesLeaderboardEntry, CheckIn, CheckinTodayLeaderboardEntry, CheckInResult, LeaderboardEntry, PointTransaction, RewardStatus, Skin, StreakLeaderboardEntry, User, WorkoutRecord, WorkoutSubmitResult } from './types'
 
-const ORIGIN = 'http://localhost:5000'
+const ORIGIN = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 const BASE = `${ORIGIN}/api`
 
 // Resolves a relative path (e.g. from User.avatarUrl) to a fetchable URL
