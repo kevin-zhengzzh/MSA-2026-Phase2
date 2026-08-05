@@ -77,7 +77,7 @@ export default function Rank() {
             <Podium key={tab} entries={entries.slice(0, 3)} />
 
             {entries.length > 3 && (
-              <div key={tab} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5">
+              <div key={`${tab}-list`} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5">
                 <ul className="divide-y divide-[var(--border-subtle)]">
                   {entries.slice(3).map((e) => (
                     <li
