@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import Pagination from './Pagination'
+import Pagination from '../../src/components/Pagination'
 
 describe('Pagination', () => {
   it('disables Previous on the first page and Next on the last page', () => {

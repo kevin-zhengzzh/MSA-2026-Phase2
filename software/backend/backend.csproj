@@ -20,4 +20,13 @@
     <InternalsVisibleTo Include="backend.Tests" />
   </ItemGroup>
 
+  <!-- SDK-style projects glob **/*.cs by default, which would otherwise
+       pull the nested Tests/ project's files (and xunit-only references)
+       straight into this build. -->
+  <ItemGroup>
+    <Compile Remove="Tests/**" />
+    <Content Remove="Tests/**" />
+    <None Remove="Tests/**" />
+  </ItemGroup>
+
 </Project>

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useStore } from './store'
-import type { User } from './types'
+import { useStore } from '../src/store'
+import type { User } from '../src/types'
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {

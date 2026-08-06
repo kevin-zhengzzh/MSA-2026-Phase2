@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import StreakTracker from './StreakTracker'
+import StreakTracker from '../../src/components/StreakTracker'
 
 describe('StreakTracker', () => {
   it('shows days remaining to the milestone when streak is below 7', () => {

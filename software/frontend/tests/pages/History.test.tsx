@@ -1,13 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CheckIn } from '../types'
+import type { CheckIn } from '../../src/types'
 
 const { getCheckInHistory } = vi.hoisted(() => ({ getCheckInHistory: vi.fn() }))
-vi.mock('../api', () => ({ getCheckInHistory }))
+vi.mock('../../src/api', () => ({ getCheckInHistory }))
 
 // Imported after the mock so History picks up the mocked api module.
-const { default: History } = await import('./History')
+const { default: History } = await import('../../src/pages/History')
 
 function makeCheckIns(dates: string[]): CheckIn[] {
   return dates.map((date, i) => ({ id: i + 1, date, note: null, createdAt: `${date}T08:00:00Z` }))
