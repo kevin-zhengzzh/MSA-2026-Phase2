@@ -4,14 +4,10 @@ import type { CheckIn, WorkoutRecord } from '../types'
 const HOVER_DELAY = 250 // ms — only shows the tooltip once the pointer has settled on a cell, like GitHub's graph
 const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', '']
 const DAY_HEADER_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-const YEAR_WEEKS = 53
-const TITLE_ROW_HEIGHT = 16
+// Nav row (‹ month/year ›) lives outside the centered calendar block, pinned
+// right below the header — its height isn't part of GRID_HEIGHT bookkeeping.
+const TITLE_ROW_HEIGHT = 22
 const DAY_HEADER_ROW_HEIGHT = 14
-// Month's header area is two rows (title + day-of-week letters); Year's is
-// one (the month labels — its day-of-week labels live in the side column
-// instead, which doesn't add height). Reserving this same total for both
-// keeps the overall card height identical regardless of which is showing.
-const HEADER_AREA_HEIGHT = TITLE_ROW_HEIGHT + DAY_HEADER_ROW_HEIGHT
 const LEGEND_CELL = 10
 const GRID_GAP = 2
 // A fixed pixel height for the day-cell grid itself, shared by both views —
@@ -26,7 +22,7 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'month', label: 'Month' },
   { key: 'year', label: 'Year' },
 ]
-const PERIOD_LABEL: Record<Period, string> = { month: 'this month', year: 'in the last year' }
+const PERIOD_LABEL: Record<Period, string> = { month: 'this month', year: 'this year' }
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -67,17 +63,19 @@ function ordinal(n: number) {
 // Both periods share the same [week][day] data shape; only the CSS grid's
 // auto-flow direction (set at render time) decides whether weeks read as
 // columns (Year) or rows (Month).
-function buildWeeks(period: Period, today: Date): Date[][] {
+function buildWeeks(period: Period, monthAnchor: Date, viewedYear: number): Date[][] {
   let gridStart: Date
   let gridEnd: Date
 
   if (period === 'month') {
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const firstOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1)
     gridStart = startOfWeekSunday(firstOfMonth)
-    gridEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    gridEnd = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0)
   } else {
-    gridStart = startOfWeekSunday(addDays(today, -(YEAR_WEEKS - 1) * 7))
-    gridEnd = today
+    // Calendar-aligned Jan 1 - Dec 31 of the viewed year, not a rolling
+    // 53-week window — lets a past year be browsed to in full, same as Month.
+    gridStart = startOfWeekSunday(new Date(viewedYear, 0, 1))
+    gridEnd = new Date(viewedYear, 11, 31)
   }
 
   const weeks: Date[][] = []
@@ -114,6 +112,34 @@ const LEVEL_COLORS = [
   'var(--primary-hover)',
 ]
 
+// Shared prev/next control for both Month and Year nav rows.
+function NavArrow({
+  direction,
+  onClick,
+  disabled,
+  label,
+}: {
+  direction: 'prev' | 'next'
+  onClick: () => void
+  disabled?: boolean
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex items-center justify-center w-5 h-5 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+        <path d={direction === 'prev' ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'} />
+      </svg>
+    </button>
+  )
+}
+
 interface Hover {
   key: string
   valueLabel: string
@@ -134,6 +160,7 @@ function Cell({
   index,
   level,
   today,
+  showDate,
   onEnter,
   onLeave,
 }: {
@@ -141,20 +168,38 @@ function Cell({
   index: number
   level: number
   today: Date
+  // Month view's cells are big enough to carry their day-of-month number,
+  // reading like an actual calendar — Year view's are too small for text.
+  showDate?: boolean
   onEnter: (e: React.PointerEvent | React.FocusEvent, day: Date) => void
   onLeave: (day: Date) => void
 }) {
-  if (day > today) return <div />
+  const isFuture = day > today
+  if (isFuture && !showDate) return <div />
+
+  // Levels 3-4 use a dark enough green that muted gray text loses contrast —
+  // switch to white past that point instead of tuning per-level manually.
+  const textColor = isFuture ? 'var(--text-muted)' : level >= 3 ? '#fff' : 'var(--text-secondary)'
+
   return (
     <div
-      className="rounded-[3px] cursor-pointer min-w-[3px] min-h-[3px] cell-in"
-      style={{ backgroundColor: LEVEL_COLORS[level], animationDelay: `${Math.min(index * 2, 300)}ms` }}
-      onPointerEnter={(e) => onEnter(e, day)}
-      onPointerLeave={() => onLeave(day)}
-      onFocus={(e) => onEnter(e, day)}
-      onBlur={() => onLeave(day)}
-      tabIndex={0}
-    />
+      className={`rounded-[3px] min-w-[3px] min-h-[3px] cell-in ${isFuture ? '' : 'cursor-pointer'} ${
+        showDate ? 'flex items-center justify-center text-[9px] font-medium leading-none' : ''
+      }`}
+      style={{
+        backgroundColor: isFuture ? 'var(--bg-page)' : LEVEL_COLORS[level],
+        border: isFuture ? '1px dashed var(--border-subtle)' : undefined,
+        color: textColor,
+        animationDelay: `${Math.min(index * 2, 300)}ms`,
+      }}
+      onPointerEnter={isFuture ? undefined : (e) => onEnter(e, day)}
+      onPointerLeave={isFuture ? undefined : () => onLeave(day)}
+      onFocus={isFuture ? undefined : (e) => onEnter(e, day)}
+      onBlur={isFuture ? undefined : () => onLeave(day)}
+      tabIndex={isFuture ? undefined : 0}
+    >
+      {showDate ? day.getDate() : null}
+    </div>
   )
 }
 
@@ -163,12 +208,28 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
   const [hover, setHover] = useState<Hover | null>(null)
   const today = useMemo(() => startOfDay(new Date()), [])
 
-  const weeks = useMemo(() => buildWeeks(period, today), [period, today])
+  // Which month Month-view is showing — 0 is the current month, negative
+  // goes back. Independent of `today` (which stays the real date, still used
+  // to blank out not-yet-happened days within whichever month is shown).
+  const [monthOffset, setMonthOffset] = useState(0)
+  const viewedMonthAnchor = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth() + monthOffset, 1),
+    [today, monthOffset]
+  )
+  const isCurrentMonth = monthOffset === 0
+
+  // Same idea as monthOffset, one calendar year at a time instead of a month.
+  const [yearOffset, setYearOffset] = useState(0)
+  const viewedYear = today.getFullYear() + yearOffset
+  const isCurrentYear = yearOffset === 0
+
+  const weeks = useMemo(
+    () => buildWeeks(period, viewedMonthAnchor, viewedYear),
+    [period, viewedMonthAnchor, viewedYear]
+  )
   const cells = useMemo(() => weeks.flat(), [weeks])
 
   const { levelByDate, caloriesByDate, countInRange } = useMemo(() => {
-    const gridStart = weeks[0][0]
-
     const checkedKeys = new Set(checkIns.map((c) => c.date))
 
     const caloriesByDate = new Map<string, number>()
@@ -179,10 +240,19 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
     const levelByDate = new Map<string, number>()
     for (const key of checkedKeys) levelByDate.set(key, levelForCalories(caloriesByDate.get(key) ?? 0, maxCalories))
 
-    const countInRange = checkIns.filter((c) => parseLocalDate(c.date) >= gridStart).length
+    // Both views' grids pad out to full calendar weeks, spilling a few days
+    // into the adjacent month/year on either end — count only check-ins
+    // actually inside the viewed month/year, not those padding days, so
+    // browsing elsewhere doesn't double-count a shared edge week.
+    const countInRange = period === 'month'
+      ? checkIns.filter((c) => {
+          const d = parseLocalDate(c.date)
+          return d.getFullYear() === viewedMonthAnchor.getFullYear() && d.getMonth() === viewedMonthAnchor.getMonth()
+        }).length
+      : checkIns.filter((c) => parseLocalDate(c.date).getFullYear() === viewedYear).length
 
     return { levelByDate, caloriesByDate, countInRange }
-  }, [checkIns, records, weeks])
+  }, [checkIns, records, weeks, period, viewedMonthAnchor, viewedYear])
 
   const monthLabels = useMemo(() => {
     if (period !== 'year') return []
@@ -270,7 +340,14 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
     <div ref={cardRef} className="bg-[var(--bg-surface)] rounded-2xl shadow p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-[var(--text-secondary)]">
-          <span className="font-bold" style={{ color: 'var(--primary)' }}>{countInRange}</span> check-in{countInRange !== 1 ? 's' : ''} {PERIOD_LABEL[period]}
+          <span className="font-bold" style={{ color: 'var(--primary)' }}>{countInRange}</span> check-in{countInRange !== 1 ? 's' : ''}{' '}
+          {period === 'month'
+            ? isCurrentMonth
+              ? 'this month'
+              : `in ${viewedMonthAnchor.toLocaleDateString('en-US', { month: 'long' })}`
+            : isCurrentYear
+            ? PERIOD_LABEL[period]
+            : `in ${viewedYear}`}
         </h2>
         <div className="relative flex text-xs font-medium bg-[var(--bg-inset)] rounded-full p-1">
           {/* Fixed width on both the sliding pill and the buttons — a
@@ -297,6 +374,37 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
         </div>
       </div>
 
+      {/* Nav row is pinned right below the header — independent of the
+          centered block beneath it, so paging months/years never shifts
+          its position. */}
+      <div className="flex items-center justify-between mb-2" style={{ height: TITLE_ROW_HEIGHT }}>
+        {period === 'month' ? (
+          <>
+            <NavArrow direction="prev" onClick={() => setMonthOffset((o) => o - 1)} label="Previous month" />
+            <span className="text-xs font-semibold text-[var(--text-primary)]">
+              {viewedMonthAnchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </span>
+            <NavArrow
+              direction="next"
+              onClick={() => setMonthOffset((o) => Math.min(0, o + 1))}
+              disabled={isCurrentMonth}
+              label="Next month"
+            />
+          </>
+        ) : (
+          <>
+            <NavArrow direction="prev" onClick={() => setYearOffset((o) => o - 1)} label="Previous year" />
+            <span className="text-xs font-semibold text-[var(--text-primary)]">{viewedYear}</span>
+            <NavArrow
+              direction="next"
+              onClick={() => setYearOffset((o) => Math.min(0, o + 1))}
+              disabled={isCurrentYear}
+              label="Next year"
+            />
+          </>
+        )}
+      </div>
+
       {/* Centers the calendar block in whatever extra height the row-aligned
           card frame has, instead of leaving it glued to the top with dead
           space below. */}
@@ -304,7 +412,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
       {period === 'year' ? (
         <div className="flex gap-2">
           <div className="flex-shrink-0">
-            <div style={{ height: HEADER_AREA_HEIGHT }} />
+            <div style={{ height: DAY_HEADER_ROW_HEIGHT }} />
             <div className="flex flex-col" style={{ height: GRID_HEIGHT }}>
               {DAY_LABELS.map((label, i) => (
                 <div key={i} className="flex-1 flex items-center text-[10px] text-[var(--text-muted)] leading-none">
@@ -315,7 +423,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="relative text-[10px] text-[var(--text-muted)]" style={{ height: HEADER_AREA_HEIGHT }}>
+            <div className="relative text-[10px] text-[var(--text-muted)]" style={{ height: DAY_HEADER_ROW_HEIGHT }}>
               {monthLabels.map((m) => (
                 <span
                   key={m.colIndex}
@@ -356,9 +464,6 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
         // run left-to-right) and weeks stack vertically, which reads better
         // than several skinny columns for a single month's span.
         <div>
-          <div className="text-[10px] text-[var(--text-muted)] leading-none" style={{ height: TITLE_ROW_HEIGHT }}>
-            {today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </div>
           <div className="grid" style={{ gap: GRID_GAP, height: DAY_HEADER_ROW_HEIGHT, gridTemplateColumns: 'repeat(7, 1fr)' }}>
             {DAY_HEADER_LABELS.map((label, i) => (
               <div key={i} className="text-[10px] text-[var(--text-muted)] text-center leading-none">
@@ -384,6 +489,7 @@ export default function CheckInHeatmap({ checkIns, records }: { checkIns: CheckI
                 index={i}
                 level={levelByDate.get(toKey(day)) ?? 0}
                 today={today}
+                showDate
                 onEnter={handleEnter}
                 onLeave={(d) => handleLeave(toKey(d))}
               />

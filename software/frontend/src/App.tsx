@@ -91,14 +91,21 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
 
   return (
     <header className="fixed top-0 inset-x-0 z-40 h-14 bg-[var(--bg-surface)] border-b border-[var(--border)] shadow" style={{ color: 'var(--primary)' }}>
-      {/* Same max-width + padding as the page body below, so the logo and
-          right-side controls line up with the sidebar/content edges instead
-          of the header's own independent inset. */}
-      <div className="max-w-7xl mx-auto pr-4 h-full grid grid-cols-3 items-center">
-        <Link to="/" className="font-bold text-lg tracking-tight justify-self-start -ml-6">HealthTrack</Link>
-        <nav className="relative flex text-sm font-medium bg-[var(--bg-inset)] rounded-full p-1 justify-self-center">
+      {/* Same max-width as the page body below, so the logo and right-side
+          controls line up with the sidebar/content edges on large screens.
+          Below lg, flex justify-between (not the 3-equal-column grid) so the
+          nav switcher doesn't get squeezed into overlapping the side items. */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:pr-4 lg:pl-4 h-full flex lg:grid lg:grid-cols-3 items-center justify-between">
+        <Link
+          to="/"
+          className="font-bold text-base sm:text-lg tracking-tight justify-self-start flex-shrink-0"
+          style={{ marginLeft: 'clamp(-24px, calc((1280px - 100vw) / 2), 0px)' }}
+        >
+          HealthTrack
+        </Link>
+        <nav className="relative flex text-sm font-medium bg-[var(--bg-inset)] rounded-full p-1 justify-self-center flex-shrink-0">
           <div
-            className="absolute top-1 bottom-1 left-1 w-20 rounded-full transition-transform duration-200 ease-out"
+            className="absolute top-1 bottom-1 left-1 w-12 sm:w-20 rounded-full transition-transform duration-200 ease-out"
             style={{
               backgroundColor: 'var(--primary-light)',
               transform: `translateX(${Math.max(activeTabIndex, 0) * 100}%)`,
@@ -113,7 +120,7 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
                 to={tab.to}
                 aria-label={tab.label}
                 title={tab.label}
-                className={`relative z-10 w-20 flex items-center justify-center px-3 py-1.5 rounded-full transition ${active ? '' : 'opacity-80 hover:opacity-100'}`}
+                className={`relative z-10 w-12 sm:w-20 flex items-center justify-center px-2 sm:px-3 py-1.5 rounded-full transition ${active ? '' : 'opacity-80 hover:opacity-100'}`}
                 style={active ? { color: 'var(--primary-text)' } : undefined}
               >
                 <tab.icon className="w-5 h-5" />
@@ -121,7 +128,7 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
             )
           })}
         </nav>
-        <div className="flex items-center gap-3 justify-self-end">
+        <div className="flex items-center gap-1.5 sm:gap-3 justify-self-end flex-shrink-0">
           <DailyTasksMenu rewardStatus={rewardStatus} onClaim={handleClaim} />
           <UserMenu
             username={username}
@@ -178,16 +185,17 @@ function PrivateLayout() {
     <div className="min-h-screen bg-[var(--bg-page)]">
       <NavBar onOpenStore={() => setStoreOpen(true)} onOpenPoints={() => setPointsOpen(true)} />
       <div className="pt-14">
-        <div className="max-w-7xl mx-auto pr-4 py-8 flex gap-10 items-start">
+        <div className="max-w-7xl mx-auto px-4 py-6 lg:py-8 flex flex-col lg:flex-row gap-6 lg:gap-10 items-stretch lg:items-start">
           {showSidebar && <Sidebar />}
           {showSidebar && <RecordButton />}
           {/* Content hugs the sidebar (no auto-margin) when one is showing —
-              mx-auto only re-centers it on sidebar-less pages like History/Record History. */}
+              mx-auto only re-centers it on sidebar-less pages like History/Record History.
+              Only applies at lg+, where the sidebar sits beside the content instead of above it. */}
           {/* Rank has its own internal side columns (RankSidebar +
               StreakTracker, 224px + 192px + two 40px gaps = 496px) eating
               into whatever width it's given — max-w-2xl (672px) + 496px so
               its podium/list column ends up exactly as wide as History's card. */}
-          <main className={`flex-1 min-w-0 ${hugLeft ? '' : 'mx-auto'} ${isWide ? 'max-w-5xl' : isRank ? 'max-w-[73rem]' : 'max-w-2xl'}`}>
+          <main className={`flex-1 min-w-0 ${hugLeft ? '' : 'lg:mx-auto'} ${isWide ? 'lg:max-w-5xl' : isRank ? 'lg:max-w-[73rem]' : 'lg:max-w-2xl'}`}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/history" element={<History />} />

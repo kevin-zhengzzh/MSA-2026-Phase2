@@ -53,7 +53,7 @@ export default function Rank() {
       }))
 
   return (
-    <div className="flex gap-10 items-start">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-stretch lg:items-start">
       <RankSidebar active={tab} onChange={setTab} />
       <BackToTopButton />
 

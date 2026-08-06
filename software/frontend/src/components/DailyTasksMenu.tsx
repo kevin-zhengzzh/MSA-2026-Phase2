@@ -37,14 +37,14 @@ export default function DailyTasksMenu({
     <div className="relative group">
       <div className="relative">
         <div
-          className="flex items-center gap-2 rounded-full px-3 py-1.5 transition cursor-pointer hover:opacity-80"
+          className="flex items-center gap-2 rounded-full px-2.5 sm:px-3 py-1.5 transition cursor-pointer hover:opacity-80"
           style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
             <path d="M9 11l3 3L22 4" />
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
-          <span className="text-sm font-medium">Daily Tasks</span>
+          <span className="hidden sm:inline text-sm font-medium">Daily Tasks</span>
         </div>
         {claimable && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)]" />

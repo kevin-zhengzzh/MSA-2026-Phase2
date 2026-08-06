@@ -67,7 +67,7 @@ export default function UserMenu({
   return (
     <div className="relative group">
       <div
-        className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 transition cursor-pointer hover:opacity-80"
+        className="flex items-center gap-2 rounded-full pl-1 pr-1 sm:pr-3 py-1 transition cursor-pointer hover:opacity-80"
         style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
       >
         <div className="relative flex-shrink-0">
@@ -82,7 +82,7 @@ export default function UserMenu({
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)]" />
           )}
         </div>
-        {username && <span className="text-sm font-medium max-w-[10rem] truncate">{username}</span>}
+        {username && <span className="hidden sm:inline text-sm font-medium max-w-[10rem] truncate">{username}</span>}
       </div>
 
       {/* Centered under the trigger pill (not right-aligned to it) so the

@@ -3,13 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../api'
 import { useStore } from '../store'
 import AuthHeader from '../components/AuthHeader'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Register() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const setAuth = useStore((s) => s.setAuth)
   const pushToast = useStore((s) => s.pushToast)
   const navigate = useNavigate()
 
@@ -18,9 +18,11 @@ export default function Register() {
     if (submitting) return
     setSubmitting(true)
     try {
-      const res = await register(username, email, password)
-      setAuth(res.token, res.userId, res.username)
-      navigate('/')
+      await register(username, email, password)
+      // Account is created but not auto-signed-in — send them to Login to
+      // confirm their credentials work rather than skipping straight in.
+      pushToast('Account created! Sign in to continue.', 'success')
+      navigate('/login')
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Registration failed')
       setSubmitting(false)
@@ -50,14 +52,11 @@ export default function Register() {
               required
               className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
             />
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Password (min 8 characters)"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={setPassword}
               minLength={8}
-              className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
             />
             <button
               type="submit"

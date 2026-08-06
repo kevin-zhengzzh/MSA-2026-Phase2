@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../api'
 import { useStore } from '../store'
 import AuthHeader from '../components/AuthHeader'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -19,6 +20,7 @@ export default function Login() {
     try {
       const res = await login(email, password)
       setAuth(res.token, res.userId, res.username)
+      pushToast('Signed in successfully!', 'success')
       navigate('/')
     } catch (err: unknown) {
       pushToast(err instanceof Error ? err.message : 'Login failed')
@@ -41,14 +43,7 @@ export default function Login() {
               required
               className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
             />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-[var(--bg-surface)] text-[var(--text-primary)]"
-            />
+            <PasswordInput placeholder="Password" value={password} onChange={setPassword} />
             <button
               type="submit"
               disabled={submitting}
