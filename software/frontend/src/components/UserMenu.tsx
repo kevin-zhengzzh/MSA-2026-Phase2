@@ -24,6 +24,7 @@ export default function UserMenu({
   onUpdateUsername: (username: string) => Promise<void>
   onSignOut: () => void
 }) {
+  const [open, setOpen] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState('')
   const [savingName, setSavingName] = useState(false)
@@ -65,8 +66,10 @@ export default function UserMenu({
   }
 
   return (
-    <div className="relative group">
-      <div
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 rounded-full pl-1 pr-1 sm:pr-3 py-1 transition cursor-pointer hover:opacity-80"
         style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
       >
@@ -83,14 +86,18 @@ export default function UserMenu({
           )}
         </div>
         {username && <span className="hidden sm:inline text-sm font-medium max-w-[10rem] truncate">{username}</span>}
-      </div>
+      </button>
 
-      {/* Centered under the trigger pill (not right-aligned to it) so the
-          wider dropdown panel overhangs evenly on both sides. */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 hidden group-hover:block z-20">
+      {open && (
+      <>
+      {/* Full-screen invisible backdrop — tapping anywhere outside the panel
+          closes it, since touch devices have no hover-out event. */}
+      <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+      {/* Right-aligned to the trigger pill, same as DailyTasksMenu. */}
+      <div className="absolute right-0 top-full pt-2 z-20">
         <div className="bg-[var(--bg-surface)] rounded-lg shadow-lg py-3 w-52 text-sm text-[var(--text-secondary)]">
           <div className="flex flex-col items-center gap-2 pb-3 mb-1 border-b border-[var(--border-subtle)] px-4">
-            <div className="relative w-16 h-16 rounded-full flex-shrink-0 group/avatar">
+            <div className="relative w-16 h-16 rounded-full flex-shrink-0">
               {avatarUrl ? (
                 <img src={assetUrl(avatarUrl)} alt="" className="w-16 h-16 rounded-full object-cover" />
               ) : (
@@ -99,10 +106,12 @@ export default function UserMenu({
                 </span>
               )}
 
+              {/* Always visible (not hover-only) — touch devices have no
+                  hover state to reveal this tap target. */}
               <label
                 htmlFor="avatar-upload-input"
                 aria-label="Change profile picture"
-                className="absolute inset-0 rounded-full bg-black/50 hidden group-hover/avatar:flex items-center justify-center cursor-pointer"
+                className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center cursor-pointer"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
                   <path d="M12 20h9" />
@@ -166,7 +175,7 @@ export default function UserMenu({
           </div>
 
           <button
-            onClick={onOpenStore}
+            onClick={() => { onOpenStore(); setOpen(false) }}
             className="relative w-full text-left px-4 py-2 hover:bg-[var(--bg-inset)] cursor-pointer"
           >
             Store
@@ -176,7 +185,7 @@ export default function UserMenu({
           </button>
           {points != null && (
             <button
-              onClick={onOpenPoints}
+              onClick={() => { onOpenPoints(); setOpen(false) }}
               className="w-full px-4 py-2 flex items-center justify-between text-[var(--text-muted)] border-t border-b border-[var(--border-subtle)] hover:bg-[var(--bg-inset)] cursor-pointer"
             >
               <span>Points</span>
@@ -191,6 +200,8 @@ export default function UserMenu({
           </button>
         </div>
       </div>
+      </>
+      )}
 
       {confirmingSignOut && (
         <div

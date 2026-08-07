@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { RewardStatus } from '../types'
 
 function TaskRow({ label, task }: { label: string; task: { pointsEarned: number; claimed: boolean } | null }) {
@@ -33,10 +34,14 @@ export default function DailyTasksMenu({
     (!!rewardStatus?.checkIn && !rewardStatus.checkIn.claimed && rewardStatus.checkIn.pointsEarned > 0) ||
     (!!rewardStatus?.workout && !rewardStatus.workout.claimed && rewardStatus.workout.pointsEarned > 0)
 
+  const [open, setOpen] = useState(false)
+
   return (
-    <div className="relative group">
+    <div className="relative">
       <div className="relative">
-        <div
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
           className="flex items-center gap-2 rounded-full px-2.5 sm:px-3 py-1.5 transition cursor-pointer hover:opacity-80"
           style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)' }}
         >
@@ -45,29 +50,36 @@ export default function DailyTasksMenu({
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
           <span className="hidden sm:inline text-sm font-medium">Daily Tasks</span>
-        </div>
+        </button>
         {claimable && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)]" />
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[var(--bg-surface)] pointer-events-none" />
         )}
       </div>
 
-      <div className="absolute right-0 top-full pt-2 hidden group-hover:block z-20">
-        <div className="bg-[var(--bg-surface)] rounded-lg shadow-lg p-4 w-64 text-sm text-[var(--text-secondary)]">
-          <h3 className="font-semibold text-[var(--text-primary)] mb-3">Daily Tasks</h3>
-          <ul className="space-y-2 mb-4">
-            <TaskRow label="Check-in" task={rewardStatus?.checkIn ?? null} />
-            <TaskRow label="Workout" task={rewardStatus?.workout ?? null} />
-          </ul>
-          <button
-            onClick={onClaim}
-            disabled={!claimable}
-            className="w-full text-sm font-semibold px-4 py-2 rounded-lg text-white transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--primary)' }}
-          >
-            Claim Reward
-          </button>
-        </div>
-      </div>
+      {open && (
+        <>
+          {/* Full-screen invisible backdrop — tapping anywhere outside the
+              panel closes it, since touch devices have no hover-out event. */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full pt-2 z-20">
+            <div className="bg-[var(--bg-surface)] rounded-lg shadow-lg p-4 w-64 text-sm text-[var(--text-secondary)]">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Daily Tasks</h3>
+              <ul className="space-y-2 mb-4">
+                <TaskRow label="Check-in" task={rewardStatus?.checkIn ?? null} />
+                <TaskRow label="Workout" task={rewardStatus?.workout ?? null} />
+              </ul>
+              <button
+                onClick={() => { onClaim(); setOpen(false) }}
+                disabled={!claimable}
+                className="w-full text-sm font-semibold px-4 py-2 rounded-lg text-white transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: 'var(--primary)' }}
+              >
+                Claim Reward
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
