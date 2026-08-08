@@ -9,7 +9,7 @@ A gamified daily check-in and workout-tracking app. Users log daily activity, bu
 | Frontend | https://msa-frontend.icyglacier-3b078f70.australiaeast.azurecontainerapps.io |
 | Backend API (Scalar docs) | https://msa-backend.icyglacier-3b078f70.australiaeast.azurecontainerapps.io/scalar/ |
 
-Deployed as Docker containers on **Azure Container Apps** (Australia East).
+Deployed as Docker containers (backend + frontend) on **Azure Container Apps** (Australia East); the database is a managed **Neon** Postgres instance, not a container.
 
 ## Introduction
 
@@ -23,7 +23,7 @@ HealthTrack turns daily exercise into a habit-forming loop: check in, log a work
 
 ## What Makes This Project Unique
 
-1. **Docker-native deployment** — the app was built Docker-first (db/backend/frontend all containerized via `docker-compose`) and shipped to Azure Container Apps using those same images, so local dev and production run the identical container setup.
+1. **Docker-native deployment** — the full stack (db/backend/frontend) is containerized locally via `docker-compose`; backend and frontend ship to Azure Container Apps using those exact images. The database specifically was deployed as a managed **Neon** Postgres instance instead of its container — a deployment-cost decision, not a Docker limitation (see the Dockerize section below).
 2. **HCI-conscious details** — a "what are points?" info tooltip demystifies the points system for new users, and the leaderboard percentile stat on the dashboard is clickable, jumping straight to your position on the Rank page instead of just displaying a number.
 3. **Multi-dimensional data visualization** — dashboard charts (bar chart, pie chart, and a check-in frequency/heatmap view) let users understand their activity from several angles at a glance, not just a single number.
 4. **Skin system** — users can customize the app's appearance to their taste by unlocking and equipping cosmetic themes, adding a personalization layer that increases day-to-day engagement.
@@ -39,7 +39,7 @@ HealthTrack turns daily exercise into a habit-forming loop: check in, log a work
 - **Data validation / sanitisation (FluentValidation)** — every request DTO (register, login, username update, workout record, etc.) is validated with FluentValidation rules before it reaches the database layer (`software/backend/Validators/`). This blocks malformed or malicious input early, preventing bad data from corrupting state or being used to probe the backend.
 
 ### 2. Dockerize the Project
-The full stack — PostgreSQL, backend, and frontend — is containerized via `software/docker-compose.yml`, each service with its own `Dockerfile`. This gives a reproducible environment across local dev and production, and is the exact image set deployed to Azure Container Apps.
+The full stack — PostgreSQL, backend, and frontend — is containerized via `software/docker-compose.yml`, each service with its own `Dockerfile`, giving a fully reproducible local environment where all three services build and run as containers. Backend and frontend ship to production using those exact images. The Postgres container itself wasn't carried over to production: Azure's own managed Postgres was tried first and priced out impractically even at the smallest tier, so the database was moved to **Neon** (a free managed Postgres service) instead. That's a deployment-cost decision made after the fact, not a limitation of the Docker setup — the database containerizes and runs correctly like everything else locally.
 
 ### 3. State Management (Zustand)
 Auth/session state, user points, and the equipped skin are managed through a Zustand store (`software/frontend/src/store.ts`) instead of prop-drilling or Context boilerplate — kept intentionally lightweight, and covered by `store.test.ts`.
