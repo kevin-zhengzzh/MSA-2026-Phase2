@@ -13,6 +13,11 @@ public class User
     public int Streak { get; set; } = 0;
     public DateTime? LastCheckIn { get; set; }
 
+    // Which calendar day the workout daily-bonus was last granted for.
+    // Tracked here (not derived from WorkoutRecords) so deleting/re-recording
+    // a workout on the same day can't re-earn the bonus.
+    public DateOnly? LastWorkoutBonusDate { get; set; }
+
     // User-configurable target for the weekly calorie chart
     public int WeeklyCalorieGoal { get; set; } = 2000;
 

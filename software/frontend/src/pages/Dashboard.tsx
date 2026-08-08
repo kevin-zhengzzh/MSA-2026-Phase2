@@ -29,17 +29,22 @@ export default function Dashboard() {
   const [showPointsHint, setShowPointsHint] = useState(false)
   useLockBodyScroll(showPointsHint)
 
+  // Re-runs whenever the calendar date changes, not just on mount — a tab
+  // left open (or a laptop woken up) past midnight would otherwise keep
+  // showing yesterday's checkedInToday/history state indefinitely, since
+  // this page never remounts on its own.
+  const todayStr = now.toDateString()
   useEffect(() => {
     Promise.allSettled([
       getMe().then(setUser),
       getTodayStatus().then((r) => {
         setCheckedInToday(r.checkedIn)
-        if (r.result) setLastResult(r.result)
+        setLastResult(r.result ?? null)
       }),
       getWorkoutHistory().then(setWorkoutHistory),
       getCheckInHistory().then(setCheckInHistory),
     ]).then(() => setInitialLoading(false))
-  }, [])
+  }, [todayStr])
 
   // A workout recorded from the shared floating Record button (which can be
   // opened from any page) doesn't touch this page's local state directly.

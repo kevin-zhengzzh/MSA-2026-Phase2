@@ -61,12 +61,15 @@ public class WorkoutController : ControllerBase
         var user = await _db.Users.FindAsync(UserId);
         if (user is null) return NotFound();
 
-        var alreadyEarnedToday = await _db.WorkoutRecords
-            .AnyAsync(w => w.UserId == UserId && w.Date == today);
+        // Tracked on User rather than "does a WorkoutRecord for today exist" —
+        // records are freely deletable/editable, so eligibility has to survive
+        // a record being deleted and re-created on the same day.
+        var alreadyEarnedToday = user.LastWorkoutBonusDate == today;
 
         // Reward is computed now but only credited to the user once claimed
         // via POST /api/rewards/claim.
         var pointsEarned = alreadyEarnedToday ? 0 : DailyWorkoutBonus;
+        if (!alreadyEarnedToday) user.LastWorkoutBonusDate = today;
 
         var record = new WorkoutRecord
         {
@@ -118,6 +121,9 @@ public class WorkoutController : ControllerBase
         var record = await _db.WorkoutRecords.FirstOrDefaultAsync(w => w.Id == id && w.UserId == UserId);
         if (record is null) return NotFound();
 
+        // Freely deletable, including the day's reward-earning record —
+        // eligibility for the daily bonus is tracked separately on User
+        // (LastWorkoutBonusDate), not by whether a record still exists.
         _db.WorkoutRecords.Remove(record);
         await _db.SaveChangesAsync();
         return NoContent();

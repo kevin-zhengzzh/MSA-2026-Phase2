@@ -1,4 +1,5 @@
 import type { AuthResponse, CaloriesLeaderboardEntry, CheckIn, CheckinTodayLeaderboardEntry, CheckInResult, LeaderboardEntry, PointTransaction, RewardStatus, Skin, StreakLeaderboardEntry, User, WorkoutRecord, WorkoutSubmitResult } from './types'
+import { useStore } from './store'
 
 const ORIGIN = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 const BASE = `${ORIGIN}/api`
@@ -14,17 +15,52 @@ function authHeaders() {
   }
 }
 
+// Error responses come in three different shapes depending on where they
+// failed: FluentValidation failures are a plain array of strings; our own
+// controller errors are { message }; and a raw model-binding failure (e.g.
+// sending "1e44" for an int field) never reaches FluentValidation at all —
+// [ApiController] short-circuits it into its own { title, errors } shape.
+// Without unwrapping that last one, the user just sees "Bad Request".
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (Array.isArray(err)) return err.join(' ')
+  if (err && typeof err === 'object') {
+    const obj = err as Record<string, unknown>
+    if (typeof obj.message === 'string') return obj.message
+    if (obj.errors && typeof obj.errors === 'object') {
+      const messages = Object.values(obj.errors as Record<string, unknown>).flat()
+      if (messages.length > 0) return messages.join(' ')
+    }
+    if (typeof obj.title === 'string') return obj.title
+  }
+  return fallback
+}
+
+// A 401 on an authenticated request means the token expired or was revoked
+// (as opposed to e.g. /auth/login rejecting bad credentials, which never had
+// a token to send in the first place) — bounce back to signed-out state
+// instead of leaving the page stuck rendering with data that'll never load.
+function handleUnauthorized(hadToken: boolean) {
+  if (!hadToken) return
+  // App load fires several authenticated requests in parallel, so they can
+  // all 401 around the same time — react to the first one only. By the time
+  // the rest get here, clearAuth() below has already nulled the live token,
+  // so this check (not the hadToken snapshot from when each request started)
+  // is what actually de-dupes them.
+  if (!useStore.getState().token) return
+  useStore.getState().clearAuth()
+  useStore.getState().pushToast('Your session has expired — please sign in again.')
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const hadToken = !!localStorage.getItem('token')
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: { ...authHeaders(), ...(options?.headers ?? {}) },
   })
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized(hadToken)
     const err = await res.json().catch(() => ({ message: res.statusText }))
-    // FluentValidation failures come back as a plain array of message strings
-    // rather than { message }
-    const message = Array.isArray(err) ? err.join(' ') : (err?.message ?? res.statusText)
-    throw new Error(message)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   if (res.status === 204) return undefined as T
   return res.json()
@@ -69,11 +105,9 @@ export async function uploadAvatar(file: File) {
     body: formData,
   })
   if (!res.ok) {
+    if (res.status === 401) handleUnauthorized(!!token)
     const err = await res.json().catch(() => ({ message: res.statusText }))
-    // FluentValidation failures come back as a plain array of message strings
-    // rather than { message }
-    const message = Array.isArray(err) ? err.join(' ') : (err?.message ?? res.statusText)
-    throw new Error(message)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   return res.json() as Promise<{ avatarUrl: string }>
 }

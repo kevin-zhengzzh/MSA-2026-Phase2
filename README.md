@@ -11,6 +11,8 @@ A gamified daily check-in and workout-tracking app. Users log daily activity, bu
 
 Deployed as Docker containers (backend + frontend) on **Azure Container Apps** (Australia East); the database is a managed **Neon** Postgres instance, not a container.
 
+⏳ **Note:** these are hosted on Azure Container Apps' lowest tier, which scales to zero when idle — the first request after a period of inactivity may take a few seconds to cold-start. Subsequent requests are fast.
+
 ## Introduction
 
 HealthTrack turns daily exercise into a habit-forming loop: check in, log a workout, keep your streak alive, and watch your points climb the leaderboard. It's a full-stack app with a C#/.NET 10 backend (EF Core + PostgreSQL) and a React + TypeScript frontend, built around a simple idea — make showing up every day feel rewarding.

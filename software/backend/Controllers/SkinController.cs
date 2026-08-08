@@ -23,9 +23,27 @@ public class SkinController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var user = await _db.Users
-            .Include(u => u.OwnedSkins)
+            .Include(u => u.OwnedSkins).ThenInclude(us => us.Skin)
             .FirstOrDefaultAsync(u => u.Id == UserId);
         if (user is null) return NotFound();
+
+        // Safety net: the 7-day streak reward is normally granted at
+        // check-in time (CheckInController.GrantStreakRewardSkin), but if a
+        // user's Streak ever ends up >= 7 without that having run — e.g. the
+        // field was set some other way — this catches them up here instead
+        // of leaving them permanently stuck looking locked in the Store.
+        if (user.Streak >= 7 && !user.OwnedSkins.Any(s => s.Skin.IsReward))
+        {
+            var rewardSkin = await _db.Skins.FirstOrDefaultAsync(s => s.IsReward);
+            if (rewardSkin is not null)
+            {
+                // Just Add() — EF's relationship fixup adds this to the
+                // already-loaded user.OwnedSkins collection automatically,
+                // so adding it there too would double it up.
+                _db.UserSkins.Add(new UserSkin { UserId = UserId, SkinId = rewardSkin.Id, UnlockedAt = DateTime.UtcNow, Seen = false });
+                await _db.SaveChangesAsync();
+            }
+        }
 
         var ownedIds = user.OwnedSkins.ToDictionary(s => s.SkinId, s => s.Seen);
 

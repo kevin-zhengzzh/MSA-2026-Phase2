@@ -109,7 +109,7 @@ public class UserController : ControllerBase
     {
         "image/jpeg", "image/png", "image/webp", "image/gif"
     };
-    private const long MaxAvatarBytes = 2 * 1024 * 1024; // 2MB
+    private const long MaxAvatarBytes = 10 * 1024 * 1024; // 10MB
 
     [HttpPost("avatar")]
     [RequestSizeLimit(MaxAvatarBytes)]
@@ -119,7 +119,7 @@ public class UserController : ControllerBase
             return BadRequest(new { message = "No file uploaded." });
 
         if (file.Length > MaxAvatarBytes)
-            return BadRequest(new { message = "Image must be 2MB or smaller." });
+            return BadRequest(new { message = "Image must be 10MB or smaller." });
 
         if (!AllowedAvatarTypes.Contains(file.ContentType))
             return BadRequest(new { message = "Unsupported image type. Use JPEG, PNG, WebP, or GIF." });

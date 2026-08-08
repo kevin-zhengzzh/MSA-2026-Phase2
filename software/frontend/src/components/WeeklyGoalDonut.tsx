@@ -95,7 +95,7 @@ export default function WeeklyGoalDonut({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     const value = Number(draftGoal)
-    if (!draftGoal || value <= 0) return
+    if (!draftGoal || !Number.isInteger(value) || value <= 0 || value > 100000) return
     setSaving(true)
     try {
       await onSave(value)
@@ -210,9 +210,12 @@ export default function WeeklyGoalDonut({
                 <input
                   type="number"
                   min={1}
+                  max={100000}
+                  step={1}
                   autoFocus
                   value={draftGoal}
                   onChange={(e) => setDraftGoal(e.target.value)}
+                  onKeyDown={(e) => { if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault() }}
                   required
                   className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />

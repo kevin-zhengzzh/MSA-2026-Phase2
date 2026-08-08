@@ -73,7 +73,17 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('token', token)
     localStorage.setItem('userId', String(userId))
     localStorage.setItem('username', username)
-    set({ token, userId, username })
+    localStorage.removeItem('avatarUrl')
+    // Wipe the previous session's per-user state before the fresh fetches
+    // land — otherwise, logging in as a different account without signing
+    // out first would briefly render the old account's avatar, theme,
+    // check-in status, and skins until getMe()/getSkins() etc. resolve.
+    document.documentElement.setAttribute('data-theme', 'default')
+    set({
+      token, userId, username,
+      user: null, cachedAvatarUrl: null, checkedInToday: false, activeTheme: 'default',
+      skins: [], rewardStatus: null,
+    })
   },
 
   setUsername: (username) => {
@@ -90,7 +100,11 @@ export const useStore = create<AppState>((set) => ({
     // and the equipped skin's colors would otherwise persist on the
     // login/landing pages after signing out.
     document.documentElement.setAttribute('data-theme', 'default')
-    set({ token: null, userId: null, username: null, user: null, cachedAvatarUrl: null, checkedInToday: false, activeTheme: 'default' })
+    set({
+      token: null, userId: null, username: null,
+      user: null, cachedAvatarUrl: null, checkedInToday: false, activeTheme: 'default',
+      skins: [], rewardStatus: null,
+    })
   },
 
   user: null,

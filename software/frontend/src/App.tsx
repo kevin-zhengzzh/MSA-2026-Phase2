@@ -57,8 +57,12 @@ function NavBar({ onOpenStore, onOpenPoints }: { onOpenStore: () => void; onOpen
   const hasStoreNotification = hasAffordableSkin || hasNewSkin
 
   async function handleAvatarUpload(file: File) {
-    await uploadAvatar(file)
-    setUser(await getMe())
+    try {
+      await uploadAvatar(file)
+      setUser(await getMe())
+    } catch (err: unknown) {
+      pushToast(err instanceof Error ? err.message : 'Failed to upload image')
+    }
   }
 
   async function handleUsernameChange(newUsername: string) {

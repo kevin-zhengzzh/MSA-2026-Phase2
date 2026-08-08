@@ -83,8 +83,8 @@ export default function RecordHistory() {
 
   async function saveEdit(id: number) {
     const caloriesNum = Number(editCalories)
-    if (!editCalories || caloriesNum <= 0) {
-      pushToast('Enter a valid calorie amount.')
+    if (!editCalories || !Number.isInteger(caloriesNum) || caloriesNum <= 0 || caloriesNum > 10000) {
+      pushToast('Enter a valid calorie amount (1–10000).')
       return
     }
     setSaving(true)
@@ -277,8 +277,11 @@ export default function RecordHistory() {
                 <input
                   type="number"
                   min={1}
+                  max={10000}
+                  step={1}
                   value={editCalories}
                   onChange={(e) => setEditCalories(e.target.value)}
+                  onKeyDown={(e) => { if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault() }}
                   className="border border-[var(--border-strong)] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </label>
