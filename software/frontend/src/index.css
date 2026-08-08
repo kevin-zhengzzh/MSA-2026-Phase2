@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Edge/IE inject their own reveal/clear icons into password inputs, which
+   duplicate PasswordInput's custom eye toggle once text is typed. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 /* Default theme (Forest green). Also defines the neutral surface/text/border
    tokens every page is built from — every other theme inherits these
    unchanged except [data-theme="dark"], which overrides them for a real

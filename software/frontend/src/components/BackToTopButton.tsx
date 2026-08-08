@@ -5,7 +5,7 @@ export default function BackToTopButton() {
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Back to top"
       title="Back to top"
-      className="fixed bottom-24 right-16 w-12 h-12 flex items-center justify-center text-white rounded-full shadow-lg transition-transform active:scale-95 cursor-pointer z-30"
+      className="fixed bottom-24 right-4 sm:right-16 w-12 h-12 flex items-center justify-center text-white rounded-full shadow-lg transition-transform active:scale-95 cursor-pointer z-30"
       style={{ backgroundColor: 'var(--primary)' }}
       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}

@@ -54,7 +54,7 @@ export default function RecordButton() {
         onClick={openRecordModal}
         aria-label="Record workout"
         title="Record workout"
-        className="fixed bottom-6 right-16 h-12 w-12 hover:w-36 flex items-center overflow-hidden text-white font-bold rounded-full shadow-lg transition-all duration-300 ease-out active:scale-95 cursor-pointer z-30"
+        className="fixed bottom-6 right-4 sm:right-16 h-12 w-12 hover:w-36 flex items-center overflow-hidden text-white font-bold rounded-full shadow-lg transition-all duration-300 ease-out active:scale-95 cursor-pointer z-30"
         style={{ backgroundColor: 'var(--primary)' }}
         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary-hover)')}
         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--primary)')}
